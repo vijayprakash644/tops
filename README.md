@@ -1,67 +1,74 @@
 # TopS.II Predictive Dialer Relay
 
-A tiny PHP relay that forwards three Ameyo predictive dialer events to TopS.II Web APIs. It exposes paired **test** and **prod** endpoints so you can verify integrations safely before touching live data.
+A tiny PHP relay that receives GET callbacks from an external dialer system and forwards them to TopS.II Web APIs.
 
 ## Non-technical overview
-- Acts like a mailroom: it receives three kinds of call events (not answered, call start, call end) and forwards them to TopS.II.
-- Provides separate doors for testing and production so you can try things without risk.
+- Acts like a mailroom: it receives call status updates and forwards the right TopS.II API.
 - Keeps responses simple: upstream always returns HTTP 200; the real success/fail flag is inside the JSON body.
 
 ## How it works (short)
-1) An external dialer sends a `POST` with a JSON payload in a `jsonData` form field.
-2) The relay validates required fields, adds the `X-FastHelp-API-Key` header, and forwards to the configured TopS.II URL.
-3) Whatever TopS.II returns is passed straight back to the caller (status 200).
+1) An external dialer calls `index.php` with query params (`GET`).
+2) The relay maps those fields to TopS.II payloads, validates required fields, and forwards to the configured TopS.II URL.
+3) Whatever TopS.II returns is passed straight back to the caller (status 200) when sending is enabled.
 
-## Endpoints
-Under `public/` there are six PHP entrypoints:
+## Endpoint
+Primary endpoint:
 
-| Purpose | Test URL | Prod URL | Payload root |
-|---------|----------|----------|--------------|
-| Not answered / error | `/test/createNotAnswer.php` | `/prod/createNotAnswer.php` | `predictiveCallCreateNotAnswer` |
-| Call start (screen-pop) | `/test/createCallStart.php` | `/prod/createCallStart.php` | `predictiveCallCreateCallStart` |
-| Call end | `/test/createCallEnd.php` | `/prod/createCallEnd.php` | `predictiveCallCreateCallEnd` |
+- `GET /index.php`
 
-All endpoints expect `POST`, `Content-Type: application/x-www-form-urlencoded`, with a `jsonData` field containing JSON.
+Routing rules:
+- If `systemDisposition=CONNECTED`, it sends TopS.II Call End.
+- Otherwise it sends TopS.II Not Answer.
+
+Field mapping:
+- `unique_id` -> `callId`
+- `userId` -> `predictiveStaffId`
+- `dialledPhone` (fallback: `dstPhone`) -> `targetTel`
+- `dispositionCode` -> `errorInfo1`
+
+Optional fields:
+- `callStartTime`, `callEndTime`, `subCtiHistoryId` (used for Call End; defaults apply if missing)
+- `callTime` (used for Not Answer; defaults to now if missing)
 
 ## Quick start (tech)
 1) Copy `.env.example` to `.env` and fill in URLs and API keys.
-2) Serve the `public/` folder. Example from repo root:
+2) Serve the repo root. Example:
    ```bash
-   php -S localhost:8000 -t public
+   php -S localhost:8000
    ```
-3) Hit the test endpoints first, then switch to `/prod/*` when ready.
+3) Call `http://localhost:8000/index.php?...` with your dialer query params.
 
-## Sample payloads
+## Sample calls
 - Not answered
-  ```json
-  {"predictiveCallCreateNotAnswer":{"callId":99999999,"callTime":"2025-08-11 11:03:23","errorInfo1":"NO_ANSWER"}}
-  ```
-- Call start
-  ```json
-  {"predictiveCallCreateCallStart":{"callId":99999999,"predictiveStaffId":"ABCD1234","targetTel":"03000000001"}}
+  ```text
+  /index.php?unique_id=99999999&systemDisposition=NO_ANSWER&dispositionCode=NO_ANSWER
   ```
 - Call end
-  ```json
-  {"predictiveCallCreateCallEnd":{"callId":99999999,"callStartTime":"2025-07-11 11:22:33","callEndTime":"2025-07-11 11:23:44","subCtiHistoryId":"ABCDE-FGHIJK-1234","targetTel":"03000000001","predictiveStaffId":"ABCD1234"}}
+  ```text
+  /index.php?unique_id=99999999&systemDisposition=CONNECTED&userId=ABCD1234&dialledPhone=03000000001
   ```
 
 ## Configuration (.env)
-- `TEST_BASE_URL` / `PROD_BASE_URL` – Base URL of your TopS.II server (no trailing slash).
-- `TEST_API_KEY` / `PROD_API_KEY` – 32-character Web API access keys.
+- `TEST_BASE_URL` / `PROD_BASE_URL` Base URL of your TopS.II server (no trailing slash).
+- `TEST_API_KEY` / `PROD_API_KEY` 32-character Web API access keys.
+- `INDEX_ENV` Set to `TEST` or `PROD` (default: `TEST`).
+- `ENABLE_REAL_SEND` Set to `true` to send to TopS.II; default is `false` (logs only).
 
 ## Behavior and errors
 - HTTP status is always 200 to mirror TopS.II; check `result` in the JSON body for `success` or `fail`.
 - The relay returns validation errors if required fields are missing before it calls TopS.II.
 
 ## Project layout
-- `public/` – Web-exposed entrypoints for test/prod.
-- `src/` – Bootstrap, validation, HTTP client, and handlers.
-- `docs/SETUP.md` – Setup steps and example curl calls.
-- `APISPecs.md` – Vendor API specification excerpt.
+- `index.php` Primary GET endpoint for dialer callbacks.
+- `src/` Bootstrap, validation, HTTP client, and index handler.
+- `docs/SETUP.md` Setup steps and example curl calls.
+- `APISPecs.md` Vendor API specification excerpt.
+
+## Legacy endpoints
+The old `public/test` and `public/prod` POST endpoints are still available but not used by the current dialer callback flow.
 
 ## Troubleshooting
 - Get `Server configuration missing`: ensure `.env` is present and values are non-empty.
-- Get `Missing jsonData payload`: send `jsonData` as form field or raw body.
 - TLS issues: verify the `BASE_URL` uses a valid cert; cURL is set to verify peers.
 
 ## Further reading
