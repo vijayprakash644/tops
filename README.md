@@ -65,7 +65,7 @@ Optional fields:
 - `APISPecs.md` Vendor API specification excerpt.
 
 ## Legacy endpoints
-The old `public/test` and `public/prod` POST endpoints are still available but not used by the current dialer callback flow.
+The `public/test` and `public/prod` POST endpoints are deprecated. We keep the code for reference, but the current dialer callback flow uses `index.php` only.
 
 ## Troubleshooting
 - Get `Server configuration missing`: ensure `.env` is present and values are non-empty.
