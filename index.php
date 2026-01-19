@@ -120,20 +120,32 @@ log_event('upstream_request', [
     'payload' => $payload,
 ]);
 
-$post = post_form_json($url, $apiKey, $jsonPayload);
+$enableSend = strtolower((string) env('ENABLE_REAL_SEND', 'false')) === 'true';
 
-log_event('upstream_response', [
-    'ok' => $post['ok'],
-    'http_code' => $post['http_code'],
-    'body' => $post['body'],
-    'error' => $post['error'],
+log_event('payload_prepared', [
+    'url' => $url,
+    'send_enabled' => $enableSend,
 ]);
 
-if (!$post['ok']) {
-    send_error('Upstream request failed', 200);
+if (!$enableSend) {
+    send_json([
+        'result' => 'success',
+        'message' => 'Upstream send disabled; payload prepared and logged.',
+    ]);
     return;
 }
 
-http_response_code(200);
-header('Content-Type: application/json; charset=utf-8');
-echo $post['body'];
+// $post = post_form_json($url, $apiKey, $jsonPayload);
+// log_event('upstream_response', [
+//     'ok' => $post['ok'],
+//     'http_code' => $post['http_code'],
+//     'body' => $post['body'],
+//     'error' => $post['error'],
+// ]);
+// if (!$post['ok']) {
+//     send_error('Upstream request failed', 200);
+//     return;
+// }
+// http_response_code(200);
+// header('Content-Type: application/json; charset=utf-8');
+// echo $post['body'];
