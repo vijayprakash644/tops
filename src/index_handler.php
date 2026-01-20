@@ -36,6 +36,7 @@ function handle_index_request(): void
         ]
     );
     send_dummy_response_and_continue();
+    sleep(1); // slight delay to ensure response sent before continuing
 
     $callId = get_param($_GET, 'unique_id');
     $customerId = to_int(get_param($_GET, 'customerId'), 0);
