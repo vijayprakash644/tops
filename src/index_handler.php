@@ -44,6 +44,8 @@ function handle_index_request(): void
     }
 
     $predictiveStaffId = get_param($_GET, 'userId');
+    $phone1Param = get_param($_GET, 'phone1');
+    $phoneParam = get_param($_GET, 'phone');
 
     $targetTel = get_param($_GET, 'dialledPhone');
     if ($targetTel === '') {
@@ -199,8 +201,12 @@ function handle_index_request(): void
         // Include errorInfo only if phone1 was not connected AND we have a status
         $phone1Failed = (!$phone1Connected && $phone1Status !== '' && strtoupper($phone1Status) !== 'CONNECTED');
         $errorInfo = $phone1Failed ? $phone1Status : '';
-        $customerId = to_int(get_param($_GET, 'customerId'), 0);        
-        $resolvedPhone1 = fetch_phone1_status_from_db($customerId);              
+        $customerId = to_int(get_param($_GET, 'customerId'), 0);
+        $resolvedPhone1 = fetch_phone1_status_from_db(
+            $customerId,
+            $phone1Param,
+            $phoneParam !== '' ? $phoneParam : $targetTel
+        );
         $phone1Failed = ($resolvedPhone1 !== '' && strtoupper($resolvedPhone1) !== 'CONNECTED');
         // Only send errorInfo when phone1 failed
         $errorInfo = $phone1Failed ? $resolvedPhone1 : '';
@@ -254,7 +260,11 @@ function handle_index_request(): void
         } else {
         // Try DB as final fallback
         if ($customerId > 0) {
-            $dbPhone1Status = fetch_phone1_status_from_db($customerId);
+            $dbPhone1Status = fetch_phone1_status_from_db(
+                $customerId,
+                $phone1Param,
+                $phoneParam !== '' ? $phoneParam : $targetTel
+            );
         }
             $errorInfo1 = $dbPhone1Status !== '' ? $dbPhone1Status : 'UNKNOWN';
         }
@@ -434,10 +444,17 @@ function pg_conn(): ?PDO
     }
 }
 
-function fetch_phone1_status_from_db(int $customerId): string
+function fetch_phone1_status_from_db(int $customerId, string $phone1, string $phone): string
 {
     $pdo = pg_conn();
     if (!$pdo) {
+        return '';
+    }
+
+    if ($phone1 === '' && $phone === '') {
+        log_event('db_lookup', 'Skipped lookup (missing phone filters)', [
+            'customerId' => $customerId,
+        ]);
         return '';
     }
 
@@ -446,20 +463,57 @@ function fetch_phone1_status_from_db(int $customerId): string
             SELECT system_disposition
             FROM call_history
             WHERE customer_id = :cid
+              AND (phone1 = :phone1 OR phone = :phone)
             ORDER BY date_added DESC
             LIMIT 1
         ";
 
         $stmt = $pdo->prepare($sql);
-        $stmt->execute([':cid' => $customerId]);
+        $stmt->execute([
+            ':cid' => $customerId,
+            ':phone1' => $phone1,
+            ':phone' => $phone,
+        ]);
         $row = $stmt->fetch();
 
-        return isset($row['system_disposition'])
-            ? trim((string)$row['system_disposition'])
-            : '';
+        if (isset($row['system_disposition'])) {
+            return trim((string)$row['system_disposition']);
+        }
+
+        log_event('db_lookup', 'No data for customer/phone, retrying after sleep', [
+            'customerId' => $customerId,
+            'phone1' => $phone1,
+            'phone' => $phone,
+        ]);
+
+        $sleepSeconds = (int) env('DB_LOOKUP_SLEEP_SECONDS', '1');
+        if ($sleepSeconds > 0) {
+            sleep($sleepSeconds);
+        }
+
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([
+            ':cid' => $customerId,
+            ':phone1' => $phone1,
+            ':phone' => $phone,
+        ]);
+        $row = $stmt->fetch();
+        if (isset($row['system_disposition'])) {
+            return trim((string)$row['system_disposition']);
+        }
+
+        log_event('db_lookup', 'No data after retry', [
+            'customerId' => $customerId,
+            'phone1' => $phone1,
+            'phone' => $phone,
+        ]);
+
+        return '';
     } catch (Throwable $e) {
         log_event('pg_error', 'Query failed', [
             'customerId' => $customerId,
+            'phone1' => $phone1,
+            'phone' => $phone,
             'error' => $e->getMessage(),
         ]);
         return '';
