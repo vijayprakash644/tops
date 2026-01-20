@@ -199,6 +199,12 @@ function handle_index_request(): void
         // Include errorInfo only if phone1 was not connected AND we have a status
         $phone1Failed = (!$phone1Connected && $phone1Status !== '' && strtoupper($phone1Status) !== 'CONNECTED');
         $errorInfo = $phone1Failed ? $phone1Status : '';
+        $customerId = to_int(get_param($_GET, 'customerId'), 0);        
+        $resolvedPhone1 = fetch_phone1_status_from_db($customerId);              
+        $phone1Failed = ($resolvedPhone1 !== '' && strtoupper($resolvedPhone1) !== 'CONNECTED');
+        // Only send errorInfo when phone1 failed
+        $errorInfo = $phone1Failed ? $resolvedPhone1 : '';
+
 
         $payload = build_call_end_payload(
             $callId,
@@ -225,6 +231,7 @@ function handle_index_request(): void
             'callId' => $callId,
             'dialIndex' => $dialIndex,
             'phone1Status' => $phone1Status,
+            'resolvedPhone1' => $resolvedPhone1,
             'phones' => $phonesFromState,
             'errorInfo' => $errorInfo,
         ]);
