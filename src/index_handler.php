@@ -310,19 +310,6 @@ function pick_error_info(string $dispositionCode, string $systemDisposition): st
 
 function is_connected_from_get(array $query, string $systemDisposition): bool
 {
-    // Preferred: callConnectedTime (your logs)
-    $cct = get_param($query, 'callConnectedTime');
-    if ($cct !== '') {
-        return true;
-    }
-
-    // Next: callResult
-    $cr = strtoupper(get_param($query, 'callResult'));
-    if ($cr === 'SUCCESS') {
-        return true;
-    }
-
-    // Last fallback: systemDisposition == CONNECTED (old behavior)
     return strtoupper($systemDisposition) === 'CONNECTED';
 }
 
