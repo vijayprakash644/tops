@@ -484,6 +484,7 @@ function fetch_phone1_status_from_db(int $customerId, string $phone): string
         log_event('db_lookup', 'No data for customer/phone, retrying after sleep', [
             'customerId' => $customerId,
             'phone' => $phone,
+            'sql' => trim($sql),
         ]);
 
         $sleepSeconds = (int) env('DB_LOOKUP_SLEEP_SECONDS', '1');
@@ -504,6 +505,7 @@ function fetch_phone1_status_from_db(int $customerId, string $phone): string
         log_event('db_lookup', 'No data after retry', [
             'customerId' => $customerId,
             'phone' => $phone,
+            'sql' => trim($sql),
         ]);
 
         return '';
@@ -511,6 +513,7 @@ function fetch_phone1_status_from_db(int $customerId, string $phone): string
         log_event('pg_error', 'Query failed', [
             'customerId' => $customerId,
             'phone' => $phone,
+            'sql' => trim($sql),
             'error' => $e->getMessage(),
         ]);
         return '';
