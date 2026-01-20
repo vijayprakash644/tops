@@ -135,7 +135,13 @@ function handle_index_request(): void
             return;
         }
 
-        $callStartTime = get_param($_GET, 'callStartTime', $now);
+        $connectedRaw = get_param($_GET, 'callConnectedTime');   // e.g. 2026/01/20 11:16:41 +0900
+        $connectedAt  = parse_ameyo_time($connectedRaw);
+
+        // If dialer doesn't send callStartTime, use parsed callConnectedTime as start
+        $callStartTime = get_param($_GET, 'callStartTime', $connectedAt !== '' ? $connectedAt : $now);
+
+        // If dialer doesn't send callEndTime, use now (or parse another field if you have it)
         $callEndTime = get_param($_GET, 'callEndTime', $now);
         $subCtiHistoryId = get_param($_GET, 'subCtiHistoryId', $callId);
 
@@ -174,7 +180,13 @@ function handle_index_request(): void
             return;
         }
 
-        $callStartTime = get_param($_GET, 'callStartTime', $now);
+        $connectedRaw = get_param($_GET, 'callConnectedTime');   // e.g. 2026/01/20 11:16:41 +0900
+        $connectedAt  = parse_ameyo_time($connectedRaw);
+
+        // If dialer doesn't send callStartTime, use parsed callConnectedTime as start
+        $callStartTime = get_param($_GET, 'callStartTime', $connectedAt !== '' ? $connectedAt : $now);
+
+        // If dialer doesn't send callEndTime, use now (or parse another field if you have it)
         $callEndTime = get_param($_GET, 'callEndTime', $now);
         $subCtiHistoryId = get_param($_GET, 'subCtiHistoryId', $callId);
 
@@ -339,6 +351,28 @@ function parse_phone_list(array $query): array
 
     return $phones;
 }
+
+function parse_ameyo_time(string $raw): string
+{
+    $raw = trim($raw);
+    if ($raw === '') return '';
+
+    // Example: "2026/01/20 11:16:41 +0900"
+    $dt = DateTime::createFromFormat('Y/m/d H:i:s O', $raw);
+    if ($dt instanceof DateTime) {
+        $dt->setTimezone(new DateTimeZone('Asia/Tokyo'));
+        return $dt->format('Y-m-d H:i:s');
+    }
+
+    // If already "Y-m-d H:i:s"
+    $dt2 = DateTime::createFromFormat('Y-m-d H:i:s', $raw, new DateTimeZone('Asia/Tokyo'));
+    if ($dt2 instanceof DateTime) {
+        return $dt2->format('Y-m-d H:i:s');
+    }
+
+    return '';
+}
+
 
 /**
  * ----------------------------
