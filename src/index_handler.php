@@ -463,7 +463,7 @@ function fetch_phone1_status_from_db(int $customerId, string $phone1, string $ph
             SELECT system_disposition
             FROM call_history
             WHERE customer_id = :cid
-              AND (phone1 = :phone1 OR phone = :phone)
+              AND (phone = :phone1 OR phone = :phone)
             ORDER BY date_added DESC
             LIMIT 1
         ";
