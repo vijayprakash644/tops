@@ -686,6 +686,7 @@ function send_or_log_request(string $endpointPath, array $payload): void
             'ok' => $post['ok'],
             'http_code' => $post['http_code'],
             'body' => $post['body'],
+            'body_len' => is_string($post['body']) ? strlen($post['body']) : 0,
             'error' => $post['error'],
         ]
     );
@@ -791,6 +792,7 @@ function log_event(string $label, string $message, array $data = []): void
     $url = isset($data['url']) ? (string) $data['url'] : '';
     $payload = isset($data['payload']) ? $data['payload'] : null;
     $query = isset($data['query']) ? $data['query'] : null;
+    $body = isset($data['body']) ? $data['body'] : null;
 
     $payloadLine = '';
     if ($payload !== null) {
@@ -812,6 +814,13 @@ function log_event(string $label, string $message, array $data = []): void
     }
     if ($payloadLine !== '') {
         $parts[] = 'payload=' . $payloadLine;
+    }
+    if ($body !== null) {
+        $bodyStr = (string) $body;
+        $parts[] = $bodyStr === '' ? 'body=[empty]' : 'body=' . $bodyStr;
+    }
+    if (isset($data['body_len'])) {
+        $parts[] = 'body_len=' . (string) $data['body_len'];
     }
     if ($query !== null) {
         $queryJson = json_encode($query, JSON_UNESCAPED_SLASHES);

@@ -5,6 +5,14 @@ declare(strict_types=1);
 
 function post_form_json(string $url, string $apiKey, string $jsonPayload): array
 {
+    if (function_exists('log_event')) {
+        log_event('http_client', 'Sending request', [
+            'url' => $url,
+            'payload' => $jsonPayload,
+            'payload_len' => strlen($jsonPayload),
+        ]);
+    }
+
     $ch = curl_init();
     if ($ch === false) {
         return [
@@ -36,6 +44,16 @@ function post_form_json(string $url, string $apiKey, string $jsonPayload): array
     $err = curl_error($ch);
     $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
+
+    if (function_exists('log_event')) {
+        log_event('http_client', 'Response received', [
+            'url' => $url,
+            'http_code' => $httpCode,
+            'error' => $err,
+            'body' => $body,
+            'body_len' => is_string($body) ? strlen($body) : 0,
+        ]);
+    }
 
     if ($body === false) {
         return [
