@@ -3,12 +3,21 @@ declare(strict_types=1);
 
 function handle_index_request(): void
 {
+    ensure_tokyo_timezone();
+
     if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
-        send_error('Only GET is allowed', 200);
+        send_error_response('Only GET is allowed');
         return;
     }
 
-    log_event('incoming_get', $_GET);
+    log_event(
+        'incoming_get',
+        'Received dialer callback',
+        [
+            'client' => client_context(),
+            'query' => $_GET,
+        ]
+    );
 
     $callId = get_param($_GET, 'unique_id');
     $predictiveStaffId = get_param($_GET, 'userId');
@@ -25,7 +34,7 @@ function handle_index_request(): void
 
     if ($isConnected) {
         if ($callId === '' || $predictiveStaffId === '' || $targetTel === '') {
-            send_error('Missing required fields: unique_id, userId, dialledPhone', 200);
+            send_error_response('Missing required fields: unique_id, userId, dialledPhone');
             return;
         }
 
@@ -44,14 +53,14 @@ function handle_index_request(): void
 
         $validation = validate_call_end($payload);
         if (!$validation['ok']) {
-            send_error($validation['error'], 200);
+            send_error_response($validation['error']);
             return;
         }
 
         $endpointPath = '/fasthelp5-server/service/callmanage/predictiveCallApiService/createCallEnd.json';
     } else {
         if ($callId === '') {
-            send_error('Missing required fields: unique_id', 200);
+            send_error_response('Missing required fields: unique_id');
             return;
         }
 
@@ -62,7 +71,7 @@ function handle_index_request(): void
 
         $validation = validate_not_answer($payload);
         if (!$validation['ok']) {
-            send_error($validation['error'], 200);
+            send_error_response($validation['error']);
             return;
         }
 
@@ -135,47 +144,58 @@ function send_or_log_request(string $endpointPath, array $payload): void
     $apiKey = env($envPrefix . '_API_KEY');
 
     if ($baseUrl === null || $apiKey === null || $baseUrl === '' || $apiKey === '') {
-        send_error('Server configuration missing', 200);
+        send_error_response('Server configuration missing');
         return;
     }
 
     $url = rtrim($baseUrl, '/') . $endpointPath;
     $jsonPayload = json_encode($payload, JSON_UNESCAPED_SLASHES);
     if ($jsonPayload === false) {
-        send_error('Failed to encode payload', 200);
+        send_error_response('Failed to encode payload');
         return;
     }
 
-    log_event('upstream_request', [
-        'url' => $url,
-        'payload' => $payload,
-    ]);
+    log_event(
+        'upstream_request',
+        'Prepared upstream request',
+        [
+            'env' => $envPrefix,
+            'url' => $url,
+            'payload' => $payload,
+        ]
+    );
 
     $enableSend = strtolower((string) env('ENABLE_REAL_SEND', 'false')) === 'true';
-    log_event('payload_prepared', [
-        'url' => $url,
-        'send_enabled' => $enableSend,
-        'env' => $envPrefix,
-    ]);
+    log_event(
+        'payload_prepared',
+        $enableSend ? 'Sending enabled' : 'Sending disabled (log only)',
+        [
+            'env' => $envPrefix,
+            'url' => $url,
+            'send_enabled' => $enableSend,
+        ]
+    );
 
     if (!$enableSend) {
-        send_json([
-            'result' => 'success',
-            'message' => 'Upstream send disabled; payload prepared and logged.',
-        ]);
+        send_success_response('Upstream send disabled; payload prepared and logged.');
         return;
     }
 
     $post = post_form_json($url, $apiKey, $jsonPayload);
-    log_event('upstream_response', [
-        'ok' => $post['ok'],
-        'http_code' => $post['http_code'],
-        'body' => $post['body'],
-        'error' => $post['error'],
-    ]);
+    log_event(
+        'upstream_response',
+        $post['ok'] ? 'Upstream response received' : 'Upstream request failed',
+        [
+            'env' => $envPrefix,
+            'ok' => $post['ok'],
+            'http_code' => $post['http_code'],
+            'body' => $post['body'],
+            'error' => $post['error'],
+        ]
+    );
 
     if (!$post['ok']) {
-        send_error('Upstream request failed', 200);
+        send_error_response('Upstream request failed');
         return;
     }
 
@@ -190,23 +210,85 @@ function normalize_env_prefix(?string $value): string
     return $upper === 'PROD' ? 'PROD' : 'TEST';
 }
 
-function log_event(string $label, array $data): void
+function ensure_tokyo_timezone(): void
+{
+    date_default_timezone_set('Asia/Tokyo');
+}
+
+function request_id(): string
+{
+    static $id = '';
+    if ($id === '') {
+        $id = bin2hex(random_bytes(8));
+    }
+    return $id;
+}
+
+function client_context(): array
+{
+    return [
+        'request_id' => request_id(),
+        'method' => $_SERVER['REQUEST_METHOD'] ?? '',
+        'ip' => $_SERVER['REMOTE_ADDR'] ?? '',
+        'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? '',
+        'uri' => $_SERVER['REQUEST_URI'] ?? '',
+    ];
+}
+
+function send_success_response(string $message, array $extra = []): void
+{
+    send_json(array_merge([
+        'result' => 'success',
+        'message' => $message,
+        'request_id' => request_id(),
+    ], $extra));
+}
+
+function send_error_response(string $message): void
+{
+    send_json([
+        'result' => 'fail',
+        'message' => $message,
+        'request_id' => request_id(),
+    ]);
+}
+
+function log_event(string $label, string $message, array $data = []): void
 {
     $logDir = __DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . 'logs';
     if (!is_dir($logDir)) {
         mkdir($logDir, 0775, true);
     }
 
-    $entry = [
-        'time' => date('Y-m-d H:i:s'),
-        'label' => $label,
-        'data' => $data,
-    ];
+    $time = date('Y-m-d H:i:s');
+    $requestId = request_id();
+    $event = $label;
+    $status = isset($data['ok']) ? ($data['ok'] ? 'success' : 'fail') : '';
+    $url = isset($data['url']) ? (string) $data['url'] : '';
+    $payload = isset($data['payload']) ? $data['payload'] : null;
 
-    $line = json_encode($entry, JSON_UNESCAPED_SLASHES);
-    if ($line === false) {
-        return;
+    $payloadLine = '';
+    if ($payload !== null) {
+        $payloadJson = json_encode($payload, JSON_UNESCAPED_SLASHES);
+        $payloadLine = $payloadJson === false ? '' : $payloadJson;
     }
 
+    $parts = [
+        $time,
+        '[' . $requestId . ']',
+        $event,
+        $message,
+    ];
+    if ($status !== '') {
+        $parts[] = 'status=' . $status;
+    }
+    if ($url !== '') {
+        $parts[] = 'url=' . $url;
+    }
+    if ($payloadLine !== '') {
+        $parts[] = 'payload=' . $payloadLine;
+    }
+
+    $line = implode(' | ', $parts);
     file_put_contents($logDir . DIRECTORY_SEPARATOR . 'index.log', $line . PHP_EOL, FILE_APPEND | LOCK_EX);
 }
