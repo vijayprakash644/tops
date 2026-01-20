@@ -37,6 +37,7 @@ function handle_index_request(): void
     );
 
     $callId = get_param($_GET, 'unique_id');
+    $customerId = to_int(get_param($_GET, 'customerId'), 0);
     if ($callId === '') {
         send_error_response('Missing required fields: unique_id');
         return;
@@ -236,7 +237,28 @@ function handle_index_request(): void
         $phone2Attempted = ($dialIndex >= 1) || ($numAttempts >= 2) || isset($state['statusByIndex']['1']);
 
         // Build errorInfo1 from phone1 status if known, else current
-        $errorInfo1 = $phone1Status !== '' ? $phone1Status : (($dialIndex === 0) ? $statusNow : 'UNKNOWN');
+        //$errorInfo1 = $phone1Status !== '' ? $phone1Status : (($dialIndex === 0) ? $statusNow : 'UNKNOWN');
+        $dbPhone1Status = '';
+
+        if ($phone1Status !== '') {
+            $errorInfo1 = $phone1Status;
+        } elseif ($dialIndex === 0) {
+            $errorInfo1 = $statusNow;
+        } else {
+        // Try DB as final fallback
+        if ($customerId > 0) {
+            $dbPhone1Status = fetch_phone1_status_from_db($customerId);
+        }
+            $errorInfo1 = $dbPhone1Status !== '' ? $dbPhone1Status : 'UNKNOWN';
+        }
+        if ($dbPhone1Status !== '') {
+            log_event('decision', 'Phone1 status resolved from DB', [
+            'customerId' => $customerId,
+            'systemDisposition' => $dbPhone1Status,
+            ]);
+        }
+
+
 
         // Build errorInfo2 (only when 2nd attempted)
         $errorInfo2 = '';
@@ -367,6 +389,76 @@ function parse_ameyo_time(string $raw): string
 
     return '';
 }
+
+/**
+ * ----------------------------
+ * PostgreSQL helpers
+ * ----------------------------
+ */
+
+function pg_conn(): ?PDO
+{
+    static $pdo = null;
+    if ($pdo instanceof PDO) {
+        return $pdo;
+    }
+
+    $host = env('PG_HOST');
+    $db   = env('PG_DB');
+    $user = env('PG_USER');
+    $pass = env('PG_PASSWORD');
+    $port = env('PG_PORT', '5432');
+
+    if (!$host || !$db || !$user) {
+        log_event('pg_error', 'Missing PG env config');
+        return null;
+    }
+
+    try {
+        $dsn = "pgsql:host={$host};port={$port};dbname={$db}";
+        $pdo = new PDO($dsn, $user, $pass, [
+            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+        ]);
+        return $pdo;
+    } catch (Throwable $e) {
+        log_event('pg_error', 'Connection failed', ['error' => $e->getMessage()]);
+        return null;
+    }
+}
+
+function fetch_phone1_status_from_db(int $customerId): string
+{
+    $pdo = pg_conn();
+    if (!$pdo) {
+        return '';
+    }
+
+    try {
+        $sql = "
+            SELECT system_disposition
+            FROM call_history
+            WHERE customer_id = :cid
+            ORDER BY date_added DESC
+            LIMIT 1
+        ";
+
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([':cid' => $customerId]);
+        $row = $stmt->fetch();
+
+        return isset($row['system_disposition'])
+            ? trim((string)$row['system_disposition'])
+            : '';
+    } catch (Throwable $e) {
+        log_event('pg_error', 'Query failed', [
+            'customerId' => $customerId,
+            'error' => $e->getMessage(),
+        ]);
+        return '';
+    }
+}
+
 
 
 /**
