@@ -876,4 +876,4 @@ function send_dummy_response_and_continue(): void
 /**
  * Entry
  */
-handle_index_request();
+//handle_index_request();
