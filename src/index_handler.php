@@ -158,7 +158,7 @@ function handle_index_request(): void
 
         // If dialer doesn't send callEndTime, use now (or parse another field if you have it)
         $callEndTime = get_param($_GET, 'callEndTime', $now);
-        $subCtiHistoryId = get_param($_GET, 'subCtiHistoryId', $callId);
+        $subCtiHistoryId = get_param($_GET, 'customerCRTId', $callId);
 
         // No errorInfo because phone1 succeeded
         $payload = build_call_end_payload(
