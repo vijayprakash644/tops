@@ -597,6 +597,7 @@ function log_event(string $label, string $message, array $data = []): void
     $status = isset($data['ok']) ? ($data['ok'] ? 'success' : 'fail') : '';
     $url = isset($data['url']) ? (string) $data['url'] : '';
     $payload = isset($data['payload']) ? $data['payload'] : null;
+    $query = isset($data['query']) ? $data['query'] : null;
 
     $payloadLine = '';
     if ($payload !== null) {
@@ -618,6 +619,12 @@ function log_event(string $label, string $message, array $data = []): void
     }
     if ($payloadLine !== '') {
         $parts[] = 'payload=' . $payloadLine;
+    }
+    if ($query !== null) {
+        $queryJson = json_encode($query, JSON_UNESCAPED_SLASHES);
+        if ($queryJson !== false && $queryJson !== '') {
+            $parts[] = 'query=' . $queryJson;
+        }
     }
 
     // Add extra event metadata (helps debugging)
