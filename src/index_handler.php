@@ -46,10 +46,14 @@ function handle_index_request(): void
     $predictiveStaffId = get_param($_GET, 'userId');
     $phone1Param = get_param($_GET, 'phone1');
     $phoneParam = get_param($_GET, 'phone');
+    $cstmPhone = get_param($_GET, 'cstmPhone');
 
     $targetTel = get_param($_GET, 'dialledPhone');
     if ($targetTel === '') {
         $targetTel = get_param($_GET, 'dstPhone');
+    }
+    if ($cstmPhone !== '' && ($dialIndex >= 1 || $targetTel === '')) {
+        $targetTel = $cstmPhone;
     }
 
     $systemDisposition = get_param($_GET, 'systemDisposition');
@@ -57,6 +61,7 @@ function handle_index_request(): void
 
     // Dialing meta
     $phones = parse_phone_list($_GET); // from phoneList JSON if present
+    $phoneLookup = $phone1Param !== '' ? $phone1Param : (isset($phones[0]) ? (string) $phones[0] : '');
     $dialIndex = to_int(get_param($_GET, 'shareablePhonesDialIndex', '0'), 0);
     $numAttempts = to_int(get_param($_GET, 'numAttempts', '1'), 1);
 
@@ -202,11 +207,7 @@ function handle_index_request(): void
         $phone1Failed = (!$phone1Connected && $phone1Status !== '' && strtoupper($phone1Status) !== 'CONNECTED');
         $errorInfo = $phone1Failed ? $phone1Status : '';
         $customerId = to_int(get_param($_GET, 'customerId'), 0);
-        $resolvedPhone1 = fetch_phone1_status_from_db(
-            $customerId,
-            $phone1Param,
-            $phoneParam !== '' ? $phoneParam : $targetTel
-        );
+        $resolvedPhone1 = fetch_phone1_status_from_db($customerId, $phoneLookup);
         $phone1Failed = ($resolvedPhone1 !== '' && strtoupper($resolvedPhone1) !== 'CONNECTED');
         // Only send errorInfo when phone1 failed
         $errorInfo = $phone1Failed ? $resolvedPhone1 : '';
@@ -260,11 +261,7 @@ function handle_index_request(): void
         } else {
         // Try DB as final fallback
         if ($customerId > 0) {
-            $dbPhone1Status = fetch_phone1_status_from_db(
-                $customerId,
-                $phone1Param,
-                $phoneParam !== '' ? $phoneParam : $targetTel
-            );
+            $dbPhone1Status = fetch_phone1_status_from_db($customerId, $phoneLookup);
         }
             $errorInfo1 = $dbPhone1Status !== '' ? $dbPhone1Status : 'UNKNOWN';
         }
@@ -375,8 +372,10 @@ function parse_phone_list(array $query): array
     $phones = [];
     $p1 = get_param($query, 'phone1');
     $p2 = get_param($query, 'phone2');
+    $cstm = get_param($query, 'cstmPhone');
     if ($p1 !== '') $phones[] = $p1;
     if ($p2 !== '') $phones[] = $p2;
+    if ($cstm !== '') $phones[] = $cstm;
 
     // As last resort: use dialled/dst (single)
     $d = get_param($query, 'dialledPhone');
@@ -444,26 +443,29 @@ function pg_conn(): ?PDO
     }
 }
 
-function fetch_phone1_status_from_db(int $customerId, string $phone1, string $phone): string
+function fetch_phone1_status_from_db(int $customerId, string $phone): string
 {
     $pdo = pg_conn();
     if (!$pdo) {
         return '';
     }
 
-    if ($phone1 === '' && $phone === '') {
+    if ($phone === '') {
         log_event('db_lookup', 'Skipped lookup (missing phone filters)', [
             'customerId' => $customerId,
+            'phone' => $phone,
         ]);
         return '';
     }
 
     try {
         $sql = "
-            SELECT system_disposition
-            FROM call_history
+            SELECT system_disposition, phone, customer_id, date_added
+            FROM call_history o
             WHERE customer_id = :cid
-              AND (phone = :phone1 OR phone = :phone)
+              AND phone = :phone
+              AND o.date_added >= CURRENT_DATE
+              AND o.date_added < (CURRENT_DATE + INTERVAL '1 day')
             ORDER BY date_added DESC
             LIMIT 1
         ";
@@ -471,7 +473,6 @@ function fetch_phone1_status_from_db(int $customerId, string $phone1, string $ph
         $stmt = $pdo->prepare($sql);
         $stmt->execute([
             ':cid' => $customerId,
-            ':phone1' => $phone1,
             ':phone' => $phone,
         ]);
         $row = $stmt->fetch();
@@ -482,7 +483,6 @@ function fetch_phone1_status_from_db(int $customerId, string $phone1, string $ph
 
         log_event('db_lookup', 'No data for customer/phone, retrying after sleep', [
             'customerId' => $customerId,
-            'phone1' => $phone1,
             'phone' => $phone,
         ]);
 
@@ -494,7 +494,6 @@ function fetch_phone1_status_from_db(int $customerId, string $phone1, string $ph
         $stmt = $pdo->prepare($sql);
         $stmt->execute([
             ':cid' => $customerId,
-            ':phone1' => $phone1,
             ':phone' => $phone,
         ]);
         $row = $stmt->fetch();
@@ -504,7 +503,6 @@ function fetch_phone1_status_from_db(int $customerId, string $phone1, string $ph
 
         log_event('db_lookup', 'No data after retry', [
             'customerId' => $customerId,
-            'phone1' => $phone1,
             'phone' => $phone,
         ]);
 
@@ -512,7 +510,6 @@ function fetch_phone1_status_from_db(int $customerId, string $phone1, string $ph
     } catch (Throwable $e) {
         log_event('pg_error', 'Query failed', [
             'customerId' => $customerId,
-            'phone1' => $phone1,
             'phone' => $phone,
             'error' => $e->getMessage(),
         ]);
