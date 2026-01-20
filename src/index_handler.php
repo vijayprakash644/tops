@@ -68,15 +68,15 @@ function handle_index_request(): void
     $state = load_state($callId);
 
     // Persist phones (if we have them)
-    if (!isset($state['phones']) || !is_array($state['phones']) || count($state['phones']) === 0) {
-        if (count($phones) > 0) {
-            $state['phones'] = $phones;
-        } else {
-            $state['phones'] = [];
-        }
-    } elseif (count($phones) > 0 && count($state['phones']) === 0) {
+    // Persist / refresh phones (prefer the longest list we have seen)
+    if (!isset($state['phones']) || !is_array($state['phones'])) {
+        $state['phones'] = [];
+    }
+
+    if (count($phones) > count($state['phones'])) {
         $state['phones'] = $phones;
     }
+
 
     if (!isset($state['statusByIndex']) || !is_array($state['statusByIndex'])) {
         $state['statusByIndex'] = [];
@@ -103,6 +103,11 @@ function handle_index_request(): void
 
     // Determine phone count from state (prefer state)
     $phonesFromState = (isset($state['phones']) && is_array($state['phones'])) ? $state['phones'] : [];
+    // Force targetTel based on dialIndex when we have the phone list
+    if (isset($phonesFromState[$dialIndex]) && $phonesFromState[$dialIndex] !== '') {
+        $targetTel = (string)$phonesFromState[$dialIndex];
+    }
+
     $hasPhone2 = count($phonesFromState) >= 2;
 
     // Evaluate “events/conditions”
@@ -228,12 +233,7 @@ function handle_index_request(): void
 
         // Decide whether to send 2 statuses:
         // - if we have 2 phones AND (dialIndex >= 1 OR numAttempts >= 2) OR we already have status for index1 in state
-        $phone2Attempted = $hasPhone2 && (
-            $dialIndex >= 1 ||
-            $numAttempts >= 2 ||
-            isset($state['statusByIndex']['1']) ||
-            isset($state['connectedByIndex']['1'])
-        );
+        $phone2Attempted = ($dialIndex >= 1) || ($numAttempts >= 2) || isset($state['statusByIndex']['1']);
 
         // Build errorInfo1 from phone1 status if known, else current
         $errorInfo1 = $phone1Status !== '' ? $phone1Status : (($dialIndex === 0) ? $statusNow : 'UNKNOWN');
@@ -241,14 +241,9 @@ function handle_index_request(): void
         // Build errorInfo2 (only when 2nd attempted)
         $errorInfo2 = '';
         if ($phone2Attempted) {
-            if ($phone2Status !== '') {
-                $errorInfo2 = $phone2Status;
-            } elseif ($dialIndex >= 1) {
-                $errorInfo2 = $statusNow;
-            } else {
-                $errorInfo2 = 'UNKNOWN';
-            }
+            $errorInfo2 = $phone2Status !== '' ? $phone2Status : $statusNow; // for dialIndex=1, statusNow is correct
         }
+
 
         $payload = build_not_answer_payload($callId, $callTime, $errorInfo1, $phone2Attempted ? $errorInfo2 : '');
 
