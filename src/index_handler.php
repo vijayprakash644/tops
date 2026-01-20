@@ -35,6 +35,7 @@ function handle_index_request(): void
             'query' => $_GET,
         ]
     );
+    send_dummy_response_and_continue();
 
     $callId = get_param($_GET, 'unique_id');
     $customerId = to_int(get_param($_GET, 'customerId'), 0);
@@ -693,6 +694,13 @@ function send_or_log_request(string $endpointPath, array $payload): void
         return;
     }
 
+    if (response_already_sent()) {
+        log_event('response', 'Upstream response ignored (already responded)', [
+            'http_code' => $post['http_code'],
+        ]);
+        return;
+    }
+
     http_response_code(200);
     header('Content-Type: application/json; charset=utf-8');
     echo $post['body'];
@@ -737,6 +745,14 @@ function client_context(): array
 
 function send_success_response(string $message, array $extra = []): void
 {
+    if (response_already_sent()) {
+        log_event('response', 'Skipped success response (already sent)', [
+            'message' => $message,
+            'extra' => $extra,
+        ]);
+        return;
+    }
+
     send_json(array_merge([
         'result' => 'success',
         'message' => $message,
@@ -746,6 +762,13 @@ function send_success_response(string $message, array $extra = []): void
 
 function send_error_response(string $message): void
 {
+    if (response_already_sent()) {
+        log_event('response', 'Skipped error response (already sent)', [
+            'message' => $message,
+        ]);
+        return;
+    }
+
     send_json([
         'result' => 'fail',
         'message' => $message,
@@ -806,6 +829,46 @@ function log_event(string $label, string $message, array $data = []): void
     file_put_contents($logDir . DIRECTORY_SEPARATOR . 'index.log', $line . PHP_EOL, FILE_APPEND | LOCK_EX);
 }
 
+function response_already_sent(): bool
+{
+    return !empty($GLOBALS['ASYNC_RESPONSE_SENT']);
+}
+
+function send_dummy_response_and_continue(): void
+{
+    if (response_already_sent()) {
+        return;
+    }
+
+    $GLOBALS['ASYNC_RESPONSE_SENT'] = true;
+
+    $responseToForm = [
+        'success' => true,
+        'message' => 'Data Received',
+    ];
+
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode($responseToForm, JSON_UNESCAPED_SLASHES);
+
+    if (function_exists('fastcgi_finish_request')) {
+        fastcgi_finish_request();
+        return;
+    }
+
+    while (ob_get_level() > 0) {
+        ob_end_flush();
+    }
+    flush();
+    if (function_exists('apache_setenv')) {
+        @apache_setenv('no-gzip', '1');
+    }
+    @ini_set('zlib.output_compression', '0');
+    @ini_set('output_buffering', '0');
+    @ini_set('implicit_flush', '1');
+    @ob_implicit_flush(true);
+    ignore_user_abort(true);
+    set_time_limit(0);
+}
 /**
  * Entry
  */
