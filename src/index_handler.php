@@ -4,7 +4,7 @@ declare(strict_types=1);
 /**
  * index.php
  *
- * Adds “events/conditions” for:
+ * Adds “events/conditions Efor:
  * - single phone
  * - two phones
  * - phone1 connected -> CallEnd only (stop; no phone2)
@@ -36,7 +36,7 @@ function handle_index_request(): void
         ]
     );
     send_dummy_response_and_continue();
-    sleep(1); // slight delay to ensure response sent before continuing
+   // sleep(1); // slight delay to ensure response sent before continuing
 
     $callId = get_param($_GET, 'unique_id');
     $customerId = to_int(get_param($_GET, 'customerId'), 0);
@@ -54,9 +54,6 @@ function handle_index_request(): void
     if ($targetTel === '') {
         $targetTel = get_param($_GET, 'dstPhone');
     }
-    if ($cstmPhone !== '' && ($dialIndex >= 1 || $targetTel === '')) {
-        $targetTel = $cstmPhone;
-    }
 
     $systemDisposition = get_param($_GET, 'systemDisposition');
     $dispositionCode = get_param($_GET, 'dispositionCode');
@@ -66,6 +63,9 @@ function handle_index_request(): void
     $phoneLookup = $phone1Param !== '' ? $phone1Param : (isset($phones[0]) ? (string) $phones[0] : '');
     $dialIndex = to_int(get_param($_GET, 'shareablePhonesDialIndex', '0'), 0);
     $numAttempts = to_int(get_param($_GET, 'numAttempts', '1'), 1);
+    if ($cstmPhone !== '' && ($dialIndex >= 1 || $targetTel === '')) {
+        $targetTel = $cstmPhone;
+    }
 
     // Connection detection: prefer callConnectedTime (your real logs)
     $isConnected = is_connected_from_get($_GET, $systemDisposition);
@@ -120,7 +120,7 @@ function handle_index_request(): void
 
     $hasPhone2 = count($phonesFromState) >= 2;
 
-    // Evaluate “events/conditions”
+    // Evaluate events/conditions
     $phone1Connected = !empty($state['connectedByIndex']['0']);
     $phone2Connected = !empty($state['connectedByIndex']['1']);
 
@@ -818,12 +818,6 @@ function log_event(string $label, string $message, array $data = []): void
         if ($queryJson !== false && $queryJson !== '') {
             $parts[] = 'query=' . $queryJson;
         }
-    }
-
-    // Add extra event metadata (helps debugging)
-    foreach ($data as $k => $v) {
-        if (in_array($k, ['url', 'payload', 'ok'], true)) continue;
-        $parts[] = $k . '=' . (is_scalar($v) ? (string)$v : json_encode($v, JSON_UNESCAPED_SLASHES));
     }
 
     $line = implode(' | ', $parts);
