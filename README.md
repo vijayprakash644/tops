@@ -12,17 +12,23 @@ A tiny PHP relay that receives GET callbacks from an external dialer system and 
 2) The relay logs the request, returns `{"success": true, "message": "Data Received"}`, then keeps processing.
 3) It maps fields to the correct CRM API and sends the request when enabled.
 
-## Endpoint
-Primary endpoint:
+## Endpoints
+Primary endpoints:
 
-- `GET /index.php`
+- `GET /index.php` (call end + not answer)
+- `GET /call_start.php` (call start)
 
-Routing rules:
+Routing rules for `index.php`:
 - Phone1 connected (`systemDisposition=CONNECTED` and `shareablePhonesDialIndex=0`) -> Call End (no errorInfo).
 - Phone2 connected (`systemDisposition=CONNECTED` and `shareablePhonesDialIndex>=1`) -> Call End with phone1 errorInfo (from state/DB).
 - Not connected -> Not Answer with errorInfo1 (and errorInfo2 if phone2 attempted).
 
-Field mapping (key inputs):
+Call start mapping (`call_start.php`):
+- `callId` from `callId`, or `unique_id`, or `crm_push_generated_time`, or `sessionId`.
+- `predictiveStaffId` from `userId`.
+- `targetTel` from `phone`, or `displayPhone`, or `dialledPhone`, or `dstPhone`.
+
+Field mapping (key inputs for `index.php`):
 - `unique_id` -> `callId`
 - `userId` -> `predictiveStaffId`
 - `dialledPhone` (fallback: `dstPhone`, or `cstmPhone` for dialIndex>=1) -> `targetTel`
@@ -36,7 +42,7 @@ Optional fields:
 - `callTime` (Not Answer; defaults to now if missing)
 
 ## Immediate response
-`index.php` always responds with:
+Both endpoints respond with:
 
 ```json
 {"success":true,"message":"Data Received"}
@@ -50,7 +56,7 @@ Errors are logged (not returned), because processing continues after the respons
    ```bash
    php -S localhost:8000
    ```
-3) Call `http://localhost:8000/index.php?...` with your dialer query params.
+3) Call `http://localhost:8000/index.php?...` or `http://localhost:8000/call_start.php?...`.
 
 ## Sample calls
 - Not answered
@@ -64,6 +70,10 @@ Errors are logged (not returned), because processing continues after the respons
 - Call end (phone2)
   ```text
   /index.php?unique_id=99999999&systemDisposition=CONNECTED&shareablePhonesDialIndex=1&userId=ABCD1234&cstmPhone=03000000002&phoneList={"phoneList":["03000000001","03000000002"]}&customerId=29
+  ```
+- Call start
+  ```text
+  /call_start.php?crm_push_generated_time=1766985685673&userId=testex1&phone=07038173460
   ```
 
 ## Configuration (.env)
