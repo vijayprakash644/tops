@@ -27,14 +27,7 @@ function handle_index_request(): void
         return;
     }
 
-    log_event(
-        'incoming_get',
-        'Received dialer callback',
-        [
-            'client' => client_context(),
-            'query' => $_GET,
-        ]
-    );
+    $incomingQuery = $_GET;
     send_dummy_response_and_continue();
    // sleep(1); // slight delay to ensure response sent before continuing
 
@@ -138,6 +131,24 @@ function handle_index_request(): void
 
     // 3) Not connected -> NotAnswer; include both statuses if phone2 attempted
     $shouldNotAnswer = (!$isConnected);
+
+    // Choose log channel per API (call_end vs not_answer)
+    if ($shouldCallEndPhone1 || $shouldCallEndPhone2) {
+        set_log_channel('call_end');
+    } elseif ($shouldNotAnswer) {
+        set_log_channel('not_answer');
+    } else {
+        set_log_channel('general');
+    }
+
+    log_event(
+        'incoming_get',
+        'Received dialer callback',
+        [
+            'client' => client_context(),
+            'query' => $incomingQuery,
+        ]
+    );
 
     // Payload + endpoint
     $payload = [];
@@ -778,11 +789,24 @@ function send_error_response(string $message): void
     ]);
 }
 
-function log_event(string $label, string $message, array $data = []): void
+function log_event(string $label, string $message, array $data = [], ?string $channel = null): void
 {
     $logDir = __DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . 'logs';
     if (!is_dir($logDir)) {
         mkdir($logDir, 0775, true);
+    }
+
+    $channelName = $channel ?? get_log_channel();
+    $safeChannel = preg_replace('/[^a-zA-Z0-9_-]/', '_', $channelName);
+    if ($safeChannel === '') {
+        $safeChannel = 'general';
+    }
+    $date = date('Y-m-d');
+    $logFile = $safeChannel . '-' . $date . '.log';
+    $logPath = $logDir . DIRECTORY_SEPARATOR . $logFile;
+
+    if (!file_exists($logPath)) {
+        file_put_contents($logPath, '==== ' . $date . ' ====' . PHP_EOL, FILE_APPEND | LOCK_EX);
     }
 
     $time = date('Y-m-d H:i:s');
@@ -830,12 +854,22 @@ function log_event(string $label, string $message, array $data = []): void
     }
 
     $line = implode(' | ', $parts);
-    file_put_contents($logDir . DIRECTORY_SEPARATOR . 'index.log', $line . PHP_EOL, FILE_APPEND | LOCK_EX);
+    file_put_contents($logPath, $line . PHP_EOL, FILE_APPEND | LOCK_EX);
 }
 
 function response_already_sent(): bool
 {
     return !empty($GLOBALS['ASYNC_RESPONSE_SENT']);
+}
+
+function set_log_channel(string $channel): void
+{
+    $GLOBALS['LOG_CHANNEL'] = $channel;
+}
+
+function get_log_channel(): string
+{
+    return isset($GLOBALS['LOG_CHANNEL']) ? (string) $GLOBALS['LOG_CHANNEL'] : 'general';
 }
 
 function send_dummy_response_and_continue(): void

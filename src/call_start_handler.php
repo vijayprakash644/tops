@@ -10,6 +10,7 @@ function handle_call_start_request(): void
         return;
     }
 
+    set_log_channel('call_start');
     log_event(
         'incoming_get',
         'Received call start callback',

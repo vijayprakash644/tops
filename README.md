@@ -85,7 +85,11 @@ Errors are logged (not returned), because processing continues after the respons
 - `PG_HOST`, `PG_DB`, `PG_USER`, `PG_PASSWORD`, `PG_PORT` Postgres connection for phone1 status lookup.
 
 ## Logging
-- Log file: `logs/index.log`
+- Log files (rotated daily):
+  - `logs/call_end-YYYY-MM-DD.log`
+  - `logs/not_answer-YYYY-MM-DD.log`
+  - `logs/call_start-YYYY-MM-DD.log`
+  - `logs/general-YYYY-MM-DD.log`
 - Timezone: `Asia/Tokyo`
 - Each request includes a `request_id` to correlate entries.
 
