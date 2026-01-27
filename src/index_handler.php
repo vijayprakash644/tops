@@ -29,7 +29,7 @@ function handle_index_request(): void
 
     $incomingQuery = $_GET;
     send_dummy_response_and_continue();
-   // sleep(1); // slight delay to ensure response sent before continuing
+    // sleep(1); // slight delay to ensure response sent before continuing
 
     $callId = get_param($_GET, 'unique_id');
     $customerId = to_int(get_param($_GET, 'customerId'), 0);
@@ -60,79 +60,34 @@ function handle_index_request(): void
         $targetTel = $cstmPhone;
     }
 
-    // Connection detection: prefer callConnectedTime (your real logs)
+    // Connection detection
     $isConnected = is_connected_from_get($_GET, $systemDisposition);
 
-    // Determine current attempt status
+    // Determine status for this attempt
     $statusNow = pick_error_info($dispositionCode, $systemDisposition);
     $now = date('Y-m-d H:i:s');
 
-    // Load & update state so that log2 can include phone1 status
-    $state = load_state($callId);
+    // Very simple phone count from current request only
+    $hasPhone2 = count($phones) >= 2;
 
-    // Persist phones (if we have them)
-    // Persist / refresh phones (prefer the longest list we have seen)
-    if (!isset($state['phones']) || !is_array($state['phones'])) {
-        $state['phones'] = [];
-    }
-
-    if (count($phones) > count($state['phones'])) {
-        $state['phones'] = $phones;
-    }
-
-
-    if (!isset($state['statusByIndex']) || !is_array($state['statusByIndex'])) {
-        $state['statusByIndex'] = [];
-    }
-    if (!isset($state['connectedByIndex']) || !is_array($state['connectedByIndex'])) {
-        $state['connectedByIndex'] = [];
-    }
-
-    // Save attempt result by dialIndex
-    $state['statusByIndex'][(string)$dialIndex] = $isConnected ? 'CONNECTED' : $statusNow;
-    $state['connectedByIndex'][(string)$dialIndex] = $isConnected;
-    $state['lastDialIndex'] = $dialIndex;
-    $state['numAttempts'] = $numAttempts;
-
-    // If you want to also store targetTel seen for each attempt:
-    if (!isset($state['targetByIndex']) || !is_array($state['targetByIndex'])) {
-        $state['targetByIndex'] = [];
-    }
-    if ($targetTel !== '') {
-        $state['targetByIndex'][(string)$dialIndex] = $targetTel;
-    }
-
-    save_state($callId, $state);
-
-    // Determine phone count from state (prefer state)
-    $phonesFromState = (isset($state['phones']) && is_array($state['phones'])) ? $state['phones'] : [];
-    // Force targetTel based on dialIndex when we have the phone list
-    if (isset($phonesFromState[$dialIndex]) && $phonesFromState[$dialIndex] !== '') {
-        $targetTel = (string)$phonesFromState[$dialIndex];
-    }
-
-    $hasPhone2 = count($phonesFromState) >= 2;
-
-    // Evaluate events/conditions
-    $phone1Connected = !empty($state['connectedByIndex']['0']);
-    $phone2Connected = !empty($state['connectedByIndex']['1']);
-
-    $phone1Status = $state['statusByIndex']['0'] ?? '';
-    $phone2Status = $state['statusByIndex']['1'] ?? '';
+    // With the current spec:
+    // - API is called when phone2 dialing is finished, or
+    // - single-phone scenario.
+    // We no longer persist any per-call state.
 
     // -----------------------------
     // EVENT / CONDITION ROUTING
     // -----------------------------
-    // 1) Phone1 connected -> CallEnd only, do NOT send anything for phone2
-    $shouldCallEndPhone1 = ($phone1Connected && $dialIndex === 0 && $isConnected);
+    // Phone1 connected (single phone or when dialIndex=0)
+    $phone1Connected = ($dialIndex === 0 && $isConnected);
+    // Phone2 connected (only meaningful when 2 phones and dialIndex>=1)
+    $phone2Connected = ($hasPhone2 && $dialIndex >= 1 && $isConnected);
 
-    // 2) Phone2 connected -> CallEnd; include phone1 failure in errorInfo
-    $shouldCallEndPhone2 = ($hasPhone2 && $phone2Connected && $dialIndex >= 1 && $isConnected);
+    $shouldCallEndPhone1 = $phone1Connected;
+    $shouldCallEndPhone2 = $phone2Connected;
+    $shouldNotAnswer     = (!$isConnected);
 
-    // 3) Not connected -> NotAnswer; include both statuses if phone2 attempted
-    $shouldNotAnswer = (!$isConnected);
-
-    // Choose log channel per API (call_end vs not_answer)
+    // Choose log channel
     if ($shouldCallEndPhone1 || $shouldCallEndPhone2) {
         set_log_channel('call_end');
     } elseif ($shouldNotAnswer) {
@@ -150,12 +105,11 @@ function handle_index_request(): void
         ]
     );
 
-    // Payload + endpoint
     $payload = [];
     $endpointPath = '';
 
     if ($shouldCallEndPhone1) {
-        // phone1 connected -> must have staff and target
+        // Single phone connected (or only phone1 used)
         if ($predictiveStaffId === '' || $targetTel === '') {
             send_error_response('Missing required fields: userId, dialledPhone/dstPhone');
             return;
@@ -164,14 +118,10 @@ function handle_index_request(): void
         $connectedRaw = get_param($_GET, 'callConnectedTime');   // e.g. 2026/01/20 11:16:41 +0900
         $connectedAt  = parse_ameyo_time($connectedRaw);
 
-        // If dialer doesn't send callStartTime, use parsed callConnectedTime as start
         $callStartTime = get_param($_GET, 'callStartTime', $connectedAt !== '' ? $connectedAt : $now);
-
-        // If dialer doesn't send callEndTime, use now (or parse another field if you have it)
-        $callEndTime = get_param($_GET, 'callEndTime', $now);
+        $callEndTime   = get_param($_GET, 'callEndTime', $now);
         $subCtiHistoryId = get_param($_GET, 'customerCRTId', $callId);
 
-        // No errorInfo because phone1 succeeded
         $payload = build_call_end_payload(
             $callId,
             $callStartTime,
@@ -179,7 +129,7 @@ function handle_index_request(): void
             $subCtiHistoryId,
             $targetTel,
             $predictiveStaffId,
-            '' // errorInfo empty
+            '' // no errorInfo when the only/first phone connected
         );
 
         $validation = validate_call_end($payload);
@@ -190,17 +140,14 @@ function handle_index_request(): void
 
         $endpointPath = '/fasthelp5-server/service/callmanage/predictiveCallApiService/createCallEnd.json';
 
-        // Cleanup state because final success happened
-        clear_state($callId);
-
         log_event('decision', 'Phone1 connected -> createCallEnd (no phone2)', [
             'callId' => $callId,
             'dialIndex' => $dialIndex,
-            'phones' => $phonesFromState,
+            'phones' => $phones,
         ]);
 
     } elseif ($shouldCallEndPhone2) {
-        // phone2 connected -> include phone1 status as errorInfo if phone1 failed / not connected
+        // 2nd phone connected -> include phone1 status in errorInfo (from DB)
         if ($predictiveStaffId === '' || $targetTel === '') {
             send_error_response('Missing required fields: userId, dialledPhone/dstPhone');
             return;
@@ -209,22 +156,17 @@ function handle_index_request(): void
         $connectedRaw = get_param($_GET, 'callConnectedTime');   // e.g. 2026/01/20 11:16:41 +0900
         $connectedAt  = parse_ameyo_time($connectedRaw);
 
-        // If dialer doesn't send callStartTime, use parsed callConnectedTime as start
-        $callStartTime = get_param($_GET, 'callStartTime', $connectedAt !== '' ? $connectedAt : $now);
+        $callStartTime    = get_param($_GET, 'callStartTime', $connectedAt !== '' ? $connectedAt : $now);
+        $callEndTime      = get_param($_GET, 'callEndTime', $now);
+        $subCtiHistoryId  = get_param($_GET, 'subCtiHistoryId', $callId);
 
-        // If dialer doesn't send callEndTime, use now (or parse another field if you have it)
-        $callEndTime = get_param($_GET, 'callEndTime', $now);
-        $subCtiHistoryId = get_param($_GET, 'subCtiHistoryId', $callId);
-
-        // Include errorInfo only if phone1 was not connected AND we have a status
-        $phone1Failed = (!$phone1Connected && $phone1Status !== '' && strtoupper($phone1Status) !== 'CONNECTED');
-        $errorInfo = $phone1Failed ? $phone1Status : '';
-        $customerId = to_int(get_param($_GET, 'customerId'), 0);
-        $resolvedPhone1 = fetch_phone1_status_from_db($customerId, $phoneLookup);
+        // Resolve phone1 status from DB (your spec)
+        $resolvedPhone1 = '';
+        if ($customerId > 0 && $phoneLookup !== '') {
+            $resolvedPhone1 = fetch_phone1_status_from_db($customerId, $phoneLookup);
+        }
         $phone1Failed = ($resolvedPhone1 !== '' && strtoupper($resolvedPhone1) !== 'CONNECTED');
-        // Only send errorInfo when phone1 failed
         $errorInfo = $phone1Failed ? $resolvedPhone1 : '';
-
 
         $payload = build_call_end_payload(
             $callId,
@@ -244,57 +186,43 @@ function handle_index_request(): void
 
         $endpointPath = '/fasthelp5-server/service/callmanage/predictiveCallApiService/createCallEnd.json';
 
-        // Cleanup state because final success happened
-        clear_state($callId);
-
-        log_event('decision', 'Phone2 connected -> createCallEnd (with phone1 errorInfo if failed)', [
+        log_event('decision', 'Phone2 connected -> createCallEnd (with phone1 errorInfo from DB if failed)', [
             'callId' => $callId,
             'dialIndex' => $dialIndex,
-            'phone1Status' => $phone1Status,
             'resolvedPhone1' => $resolvedPhone1,
-            'phones' => $phonesFromState,
+            'phones' => $phones,
             'errorInfo' => $errorInfo,
         ]);
 
     } elseif ($shouldNotAnswer) {
+        // Neither phone connected -> NotAnswer
         $callTime = get_param($_GET, 'callTime', $now);
 
-        // Decide whether to send 2 statuses:
-        // - if we have 2 phones AND (dialIndex >= 1 OR numAttempts >= 2) OR we already have status for index1 in state
-        $phone2Attempted = ($dialIndex >= 1) || ($numAttempts >= 2) || isset($state['statusByIndex']['1']);
-
-        // Build errorInfo1 from phone1 status if known, else current
-        //$errorInfo1 = $phone1Status !== '' ? $phone1Status : (($dialIndex === 0) ? $statusNow : 'UNKNOWN');
+        // Phone1 errorInfo from DB or current status
         $dbPhone1Status = '';
-
-        if ($phone1Status !== '') {
-            $errorInfo1 = $phone1Status;
-        } elseif ($dialIndex === 0) {
-            $errorInfo1 = $statusNow;
-        } else {
-        // Try DB as final fallback
-        if ($customerId > 0) {
+        if ($customerId > 0 && $phoneLookup !== '') {
             $dbPhone1Status = fetch_phone1_status_from_db($customerId, $phoneLookup);
         }
-            $errorInfo1 = $dbPhone1Status !== '' ? $dbPhone1Status : 'UNKNOWN';
-        }
         if ($dbPhone1Status !== '') {
-            log_event('decision', 'Phone1 status resolved from DB', [
-            'customerId' => $customerId,
-            'systemDisposition' => $dbPhone1Status,
-            ]);
+            $errorInfo1 = $dbPhone1Status;
+        } else {
+            // fallback to current status
+            $errorInfo1 = $statusNow;
         }
 
-
-
-        // Build errorInfo2 (only when 2nd attempted)
+        // Phone2 errorInfo only when there really is a second phone
         $errorInfo2 = '';
-        if ($phone2Attempted) {
-            $errorInfo2 = $phone2Status !== '' ? $phone2Status : $statusNow; // for dialIndex=1, statusNow is correct
+        if ($hasPhone2) {
+            // for phone2, we just use current statusNow when dialIndex>=1
+            $errorInfo2 = ($dialIndex >= 1) ? $statusNow : '';
         }
 
-
-        $payload = build_not_answer_payload($callId, $callTime, $errorInfo1, $phone2Attempted ? $errorInfo2 : '');
+        $payload = build_not_answer_payload(
+            $callId,
+            $callTime,
+            $errorInfo1,
+            $hasPhone2 ? $errorInfo2 : ''
+        );
 
         $validation = validate_not_answer($payload);
         if (!$validation['ok']) {
@@ -304,21 +232,21 @@ function handle_index_request(): void
 
         $endpointPath = '/fasthelp5-server/service/callmanage/predictiveCallApiService/createNotAnswer.json';
 
-        log_event('decision', $phone2Attempted ? 'Not connected -> createNotAnswer (errorInfo1+2)' : 'Not connected -> createNotAnswer (errorInfo1 only)', [
-            'callId' => $callId,
-            'dialIndex' => $dialIndex,
-            'numAttempts' => $numAttempts,
-            'phone2Attempted' => $phone2Attempted,
-            'errorInfo1' => $errorInfo1,
-            'errorInfo2' => $phone2Attempted ? $errorInfo2 : '',
-            'phones' => $phonesFromState,
-        ]);
-
-        // Optional: if phone2Attempted and not connected, you may clear state because dialing cycle ended.
-        // If your dialer may retry more, keep it. Here we keep it by default.
+        log_event(
+            'decision',
+            $hasPhone2 ? 'Not connected -> createNotAnswer (errorInfo1+2)' : 'Not connected -> createNotAnswer (errorInfo1 only)',
+            [
+                'callId' => $callId,
+                'dialIndex' => $dialIndex,
+                'numAttempts' => $numAttempts,
+                'hasPhone2' => $hasPhone2,
+                'errorInfo1' => $errorInfo1,
+                'errorInfo2' => $hasPhone2 ? $errorInfo2 : '',
+                'phones' => $phones,
+            ]
+        );
 
     } else {
-        // Fallback safety
         send_error_response('Unable to determine action from parameters');
         return;
     }
