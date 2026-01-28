@@ -163,7 +163,7 @@ function handle_index_request(): void
         // Resolve phone1 status from DB (your spec)
         $resolvedPhone1 = '';
         if ($customerId > 0 && $phoneLookup !== '') {
-            $resolvedPhone1 = fetch_phone1_status_from_db($customerId, $phoneLookup);
+            $resolvedPhone1 = fetch_phone1_status_from_db($customerId, $phoneLookup, $callId);
         }
         $phone1Failed = ($resolvedPhone1 !== '' && strtoupper($resolvedPhone1) !== 'CONNECTED');
         $errorInfo = $phone1Failed ? $resolvedPhone1 : '';
@@ -201,7 +201,7 @@ function handle_index_request(): void
         // Phone1 errorInfo from DB or current status
         $dbPhone1Status = '';
         if ($customerId > 0 && $phoneLookup !== '') {
-            $dbPhone1Status = fetch_phone1_status_from_db($customerId, $phoneLookup);
+            $dbPhone1Status = fetch_phone1_status_from_db($customerId, $phoneLookup, $callId);
         }
         if ($dbPhone1Status !== '') {
             $errorInfo1 = $dbPhone1Status;
@@ -384,7 +384,7 @@ function pg_conn(): ?PDO
     }
 }
 
-function fetch_phone1_status_from_db(int $customerId, string $phone): string
+function fetch_phone1_status_from_db(int $customerId, string $phone, string $uniqueId): string
 {
     $pdo = pg_conn();
     if (!$pdo) {
@@ -405,8 +405,7 @@ function fetch_phone1_status_from_db(int $customerId, string $phone): string
             FROM call_history o
             WHERE customer_id = :cid
               AND phone = :phone
-              AND o.date_added >= CURRENT_DATE
-              AND o.date_added < (CURRENT_DATE + INTERVAL '1 day')
+              AND customer_data ILIKE :unique_pattern               
             ORDER BY date_added DESC
             LIMIT 1
         ";
@@ -415,6 +414,7 @@ function fetch_phone1_status_from_db(int $customerId, string $phone): string
         $stmt->execute([
             ':cid' => $customerId,
             ':phone' => $phone,
+            ':unique_pattern' => '%' . $uniqueId . '%',
         ]);
         $row = $stmt->fetch();
 
@@ -425,6 +425,7 @@ function fetch_phone1_status_from_db(int $customerId, string $phone): string
         log_event('db_lookup', 'No data for customer/phone, retrying after sleep', [
             'customerId' => $customerId,
             'phone' => $phone,
+            'uniqueId' => $uniqueId,
             'sql' => trim($sql),
         ]);
 
@@ -437,6 +438,7 @@ function fetch_phone1_status_from_db(int $customerId, string $phone): string
         $stmt->execute([
             ':cid' => $customerId,
             ':phone' => $phone,
+            ':unique_pattern' => '%' . $uniqueId . '%',
         ]);
         $row = $stmt->fetch();
         if (isset($row['system_disposition'])) {
@@ -446,6 +448,7 @@ function fetch_phone1_status_from_db(int $customerId, string $phone): string
         log_event('db_lookup', 'No data after retry', [
             'customerId' => $customerId,
             'phone' => $phone,
+            'uniqueId' => $uniqueId,
             'sql' => trim($sql),
         ]);
 
@@ -454,6 +457,7 @@ function fetch_phone1_status_from_db(int $customerId, string $phone): string
         log_event('pg_error', 'Query failed', [
             'customerId' => $customerId,
             'phone' => $phone,
+            'uniqueId' => $uniqueId,
             'sql' => trim($sql),
             'error' => $e->getMessage(),
         ]);
