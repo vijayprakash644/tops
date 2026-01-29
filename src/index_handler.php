@@ -33,6 +33,10 @@ function handle_index_request(): void
 
     $callId = get_param($_GET, 'unique_id');
     $customerId = to_int(get_param($_GET, 'customerId'), 0);
+    $crtObjectId = get_param($_GET, 'crtObjectId');
+    if ($crtObjectId === '') {
+        $crtObjectId = get_param($_GET, 'customerCRTId');
+    }
     if ($callId === '') {
         send_error_response('Missing required fields: unique_id');
         return;
@@ -104,6 +108,17 @@ function handle_index_request(): void
             'query' => $incomingQuery,
         ]
     );
+
+    $gate = request_gate_check($crtObjectId, $customerId, $callId);
+    if (!$gate['ok']) {
+        log_event('dedupe', 'Skipped duplicate request', [
+            'reason' => $gate['reason'],
+            'crtObjectId' => $crtObjectId,
+            'customerId' => $customerId,
+            'callId' => $callId,
+        ]);
+        return;
+    }
 
     $payload = [];
     $endpointPath = '';
@@ -251,7 +266,8 @@ function handle_index_request(): void
         return;
     }
 
-    send_or_log_request($endpointPath, $payload);
+    $sendResult = send_or_log_request($endpointPath, $payload);
+    request_gate_complete($gate['key'], $sendResult);
 }
 
 /**
@@ -404,8 +420,10 @@ function fetch_phone1_status_from_db(int $customerId, string $phone, string $uni
             SELECT system_disposition, phone, customer_id, date_added
             FROM call_history o
             WHERE customer_id = :cid
+              AND customer_data::jsonb->>'unique_id' = :unique_id
+              AND customer_data::jsonb->>'phone1' IS NOT NULL
               AND phone = :phone
-              AND customer_data ILIKE :unique_pattern               
+              AND phone = customer_data::jsonb->>'phone1'
             ORDER BY date_added DESC
             LIMIT 1
         ";
@@ -414,7 +432,7 @@ function fetch_phone1_status_from_db(int $customerId, string $phone, string $uni
         $stmt->execute([
             ':cid' => $customerId,
             ':phone' => $phone,
-            ':unique_pattern' => '%' . $uniqueId . '%',
+            ':unique_id' => $uniqueId,
         ]);
         $row = $stmt->fetch();
 
@@ -438,7 +456,7 @@ function fetch_phone1_status_from_db(int $customerId, string $phone, string $uni
         $stmt->execute([
             ':cid' => $customerId,
             ':phone' => $phone,
-            ':unique_pattern' => '%' . $uniqueId . '%',
+            ':unique_id' => $uniqueId,
         ]);
         $row = $stmt->fetch();
         if (isset($row['system_disposition'])) {
@@ -567,11 +585,89 @@ function clear_state(string $callId): void
 
 /**
  * ----------------------------
+ * Request dedupe gate
+ * ----------------------------
+ */
+
+function request_key(string $crtObjectId, int $customerId, string $callId): string
+{
+    $raw = json_encode([
+        'crtObjectId' => $crtObjectId,
+        'customerId' => $customerId,
+        'callId' => $callId,
+    ], JSON_UNESCAPED_SLASHES);
+    return sha1($raw === false ? ($crtObjectId . '|' . $customerId . '|' . $callId) : $raw);
+}
+
+function request_state_path(string $key): string
+{
+    return state_dir() . DIRECTORY_SEPARATOR . 'req_' . $key . '.json';
+}
+
+function load_request_state(string $key): array
+{
+    $p = request_state_path($key);
+    if (!is_file($p)) {
+        return [];
+    }
+    $raw = file_get_contents($p);
+    $j = json_decode((string)$raw, true);
+    return is_array($j) ? $j : [];
+}
+
+function save_request_state(string $key, array $state): void
+{
+    $state['updatedAt'] = date('Y-m-d H:i:s');
+    file_put_contents(request_state_path($key), json_encode($state, JSON_UNESCAPED_SLASHES), LOCK_EX);
+}
+
+function request_gate_check(string $crtObjectId, int $customerId, string $callId): array
+{
+    $key = request_key($crtObjectId, $customerId, $callId);
+    $state = load_request_state($key);
+
+    $processingTtl = (int) env('REQUEST_PROCESSING_TTL_SECONDS', '30');
+    $dedupeTtl = (int) env('REQUEST_DEDUPE_TTL_SECONDS', '300');
+
+    $updatedAt = isset($state['updatedAt']) ? strtotime((string) $state['updatedAt']) : 0;
+    $age = $updatedAt > 0 ? (time() - $updatedAt) : PHP_INT_MAX;
+
+    if (!empty($state['status'])) {
+        if ($state['status'] === 'processing' && $age < $processingTtl) {
+            return ['ok' => false, 'reason' => 'processing', 'key' => $key];
+        }
+        if ($state['status'] === 'processed' && $age < $dedupeTtl) {
+            return ['ok' => false, 'reason' => 'processed', 'key' => $key];
+        }
+    }
+
+    save_request_state($key, [
+        'status' => 'processing',
+        'crtObjectId' => $crtObjectId,
+        'customerId' => $customerId,
+        'callId' => $callId,
+    ]);
+
+    return ['ok' => true, 'reason' => 'new', 'key' => $key];
+}
+
+function request_gate_complete(string $key, array $sendResult): void
+{
+    $status = $sendResult['ok'] ? 'processed' : 'failed';
+    $state = [
+        'status' => $status,
+        'result' => $sendResult,
+    ];
+    save_request_state($key, $state);
+}
+
+/**
+ * ----------------------------
  * Upstream sender
  * ----------------------------
  */
 
-function send_or_log_request(string $endpointPath, array $payload): void
+function send_or_log_request(string $endpointPath, array $payload): array
 {
     $envPrefix = normalize_env_prefix(env('INDEX_ENV', 'TEST'));
     $baseUrl = env($envPrefix . '_BASE_URL');
@@ -579,14 +675,14 @@ function send_or_log_request(string $endpointPath, array $payload): void
 
     if ($baseUrl === null || $apiKey === null || $baseUrl === '' || $apiKey === '') {
         send_error_response('Server configuration missing');
-        return;
+        return ['ok' => false, 'status' => 'config_missing'];
     }
 
     $url = rtrim($baseUrl, '/') . $endpointPath;
     $jsonPayload = json_encode($payload, JSON_UNESCAPED_SLASHES);
     if ($jsonPayload === false) {
         send_error_response('Failed to encode payload');
-        return;
+        return ['ok' => false, 'status' => 'encode_failed'];
     }
 
     log_event(
@@ -617,7 +713,7 @@ function send_or_log_request(string $endpointPath, array $payload): void
                 'payload' => $payload,
             ],
         ]);
-        return;
+        return ['ok' => true, 'status' => 'send_disabled'];
     }
 
     $post = post_form_json($url, $apiKey, $jsonPayload);
@@ -636,19 +732,20 @@ function send_or_log_request(string $endpointPath, array $payload): void
 
     if (!$post['ok']) {
         send_error_response('Upstream request failed');
-        return;
+        return ['ok' => false, 'status' => 'upstream_failed', 'http_code' => $post['http_code']];
     }
 
     if (response_already_sent()) {
         log_event('response', 'Upstream response ignored (already responded)', [
             'http_code' => $post['http_code'],
         ]);
-        return;
+        return ['ok' => true, 'status' => 'responded_early', 'http_code' => $post['http_code']];
     }
 
     http_response_code(200);
     header('Content-Type: application/json; charset=utf-8');
     echo $post['body'];
+    return ['ok' => true, 'status' => 'sent', 'http_code' => $post['http_code']];
 }
 
 function normalize_env_prefix(?string $value): string
