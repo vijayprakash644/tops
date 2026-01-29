@@ -62,6 +62,8 @@ function handle_index_request(): void
 
     $systemDisposition = get_param($_GET, 'systemDisposition');
     $dispositionCode = get_param($_GET, 'dispositionCode');
+    $lastStatus1 = get_param($_GET, 'lastStatus_1');
+    $lastStatus2 = get_param($_GET, 'lastStatus_2');
 
     // Dialing meta
     $phones = parse_phone_list($_GET); // from phoneList JSON if present
@@ -226,11 +228,40 @@ function handle_index_request(): void
         if ($customerId > 0 && $phoneLookup !== '') {
             $dbPhone1Status = fetch_phone1_status_from_db($customerId, $phoneLookup, $callId);
         }
-        if ($dbPhone1Status !== '') {
+
+        if ($hasPhone2 && $dialIndex === 0) {
+            $phone1Status = $dbPhone1Status !== '' ? $dbPhone1Status : ($lastStatus1 !== '' ? $lastStatus1 : 'UNKNOWN');
+            $stateKey = phone1_state_key($customerId, $callId);
+            save_phone1_state($stateKey, [
+                'customerId' => $customerId,
+                'callId' => $callId,
+                'callTime' => $callTime,
+                'phone1Status' => $phone1Status,
+            ]);
+            log_event('state', 'Stored phone1 status; waiting for phone2', [
+                'customerId' => $customerId,
+                'callId' => $callId,
+                'callTime' => $callTime,
+                'phone1Status' => $phone1Status,
+            ]);
+            request_gate_complete($gate['key'], ['ok' => true, 'status' => 'waiting_phone2']);
+            return;
+        }
+
+        $phone1StateKey = '';
+        $phone1State = [];
+        if ($hasPhone2 && $dialIndex >= 1) {
+            $phone1StateKey = phone1_state_key($customerId, $callId);
+            $phone1State = load_phone1_state($phone1StateKey);
+        }
+
+        if (isset($phone1State['phone1Status']) && $phone1State['phone1Status'] !== '') {
+            $errorInfo1 = (string) $phone1State['phone1Status'];
+        } elseif ($dbPhone1Status !== '') {
             $errorInfo1 = $dbPhone1Status;
         } else {
-            // fallback to unknown/blank rather than current status
-            $errorInfo1 = 'UNKNOWN';
+            // fallback to lastStatus_1 when DB has not caught up
+            $errorInfo1 = $lastStatus1 !== '' ? $lastStatus1 : 'UNKNOWN';
         }
 
         // Phone2 errorInfo only when there really is a second phone
@@ -266,6 +297,7 @@ function handle_index_request(): void
                 'errorInfo1' => $errorInfo1,
                 'errorInfo2' => $hasPhone2 ? $errorInfo2 : '',
                 'phones' => $phones,
+                'phone1_state_used' => isset($phone1State['phone1Status']) && $phone1State['phone1Status'] !== '',
             ]
         );
 
@@ -276,6 +308,10 @@ function handle_index_request(): void
 
     $sendResult = send_or_log_request($endpointPath, $payload);
     request_gate_complete($gate['key'], $sendResult);
+    if ($hasPhone2 && $dialIndex >= 1) {
+        $stateKeyToClear = phone1_state_key($customerId, $callId);
+        clear_phone1_state($stateKeyToClear);
+    }
 }
 
 /**
@@ -654,6 +690,56 @@ function save_state(string $callId, array $state): void
 function clear_state(string $callId): void
 {
     $p = state_path($callId);
+    if (is_file($p)) {
+        @unlink($p);
+    }
+}
+
+/**
+ * ----------------------------
+ * Phone1 state store
+ * ----------------------------
+ */
+
+function phone1_state_key(int $customerId, string $callId): string
+{
+    return sha1($customerId . '|' . $callId);
+}
+
+function phone1_state_path(string $key): string
+{
+    return state_dir() . DIRECTORY_SEPARATOR . 'phone1_' . $key . '.json';
+}
+
+function load_phone1_state(string $key): array
+{
+    $p = phone1_state_path($key);
+    if (!is_file($p)) {
+        return [];
+    }
+    $raw = file_get_contents($p);
+    $j = json_decode((string)$raw, true);
+    if (!is_array($j)) {
+        return [];
+    }
+    $ttl = (int) env('PHONE1_STATE_TTL_SECONDS', '600');
+    $updatedAt = isset($j['updatedAt']) ? strtotime((string) $j['updatedAt']) : 0;
+    if ($updatedAt > 0 && (time() - $updatedAt) > $ttl) {
+        @unlink($p);
+        return [];
+    }
+    return $j;
+}
+
+function save_phone1_state(string $key, array $state): void
+{
+    $state['updatedAt'] = date('Y-m-d H:i:s');
+    file_put_contents(phone1_state_path($key), json_encode($state, JSON_UNESCAPED_SLASHES), LOCK_EX);
+}
+
+function clear_phone1_state(string $key): void
+{
+    $p = phone1_state_path($key);
     if (is_file($p)) {
         @unlink($p);
     }
