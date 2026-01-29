@@ -28,7 +28,15 @@ function handle_index_request(): void
     }
 
     $incomingQuery = $_GET;
+    log_event('timing', 'Before dummy response', [
+        'phase' => 'before_dummy_response',
+        'ts' => sprintf('%.6f', microtime(true)),
+    ]);
     send_dummy_response_and_continue();
+    log_event('timing', 'After dummy response', [
+        'phase' => 'after_dummy_response',
+        'ts' => sprintf('%.6f', microtime(true)),
+    ]);
     // sleep(1); // slight delay to ensure response sent before continuing
 
     $callId = get_param($_GET, 'unique_id');
