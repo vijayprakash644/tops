@@ -240,7 +240,9 @@ function handle_index_request(): void
             $phone1State = load_phone1_state($phone1StateKey);
         }
 
-        if (isset($phone1State['phone1Status']) && $phone1State['phone1Status'] !== '') {
+        if (!$hasPhone2) {
+            $errorInfo1 = $statusNow;
+        } elseif (isset($phone1State['phone1Status']) && $phone1State['phone1Status'] !== '') {
             $errorInfo1 = (string) $phone1State['phone1Status'];
         } else {
             $errorInfo1 = 'UNKNOWN';
