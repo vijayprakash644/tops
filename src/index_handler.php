@@ -57,7 +57,7 @@ function handle_index_request(): void
 
     // Dialing meta
     $phones = parse_phone_list($_GET); // from phoneList JSON if present
-    $phoneLookup = $phone1Param !== '' ? $phone1Param : (isset($phones[0]) ? (string) $phones[0] : '');
+    $phoneLookup = get_phone1_lookup($_GET, $phones);
     $dialIndex = to_int(get_param($_GET, 'shareablePhonesDialIndex', '0'), 0);
     $numAttempts = to_int(get_param($_GET, 'numAttempts', '1'), 1);
     if ($cstmPhone !== '' && ($dialIndex >= 1 || $targetTel === '')) {
@@ -342,6 +342,35 @@ function parse_phone_list(array $query): array
     return $phones;
 }
 
+function get_phone1_lookup(array $query, array $phones): string
+{
+    $phone1 = get_param($query, 'phone1');
+    if ($phone1 !== '') {
+        return $phone1;
+    }
+
+    $raw = get_param($query, 'phoneList');
+    if ($raw !== '') {
+        $decoded = json_decode($raw, true);
+        if (is_array($decoded) && isset($decoded['phoneList']) && is_array($decoded['phoneList'])) {
+            $list = array_values(array_filter(array_map('strval', $decoded['phoneList'])));
+            if (isset($list[0]) && $list[0] !== '') {
+                return $list[0];
+            }
+        }
+    }
+
+    if (isset($phones[0]) && $phones[0] !== '') {
+        return (string) $phones[0];
+    }
+
+    $dialled = get_param($query, 'dialledPhone');
+    if ($dialled === '') {
+        $dialled = get_param($query, 'dstPhone');
+    }
+    return $dialled;
+}
+
 function parse_ameyo_time(string $raw): string
 {
     $raw = trim($raw);
@@ -420,10 +449,8 @@ function fetch_phone1_status_from_db(int $customerId, string $phone, string $uni
             SELECT system_disposition, phone, customer_id, date_added
             FROM call_history o
             WHERE customer_id = :cid
-              AND customer_data::jsonb->>'unique_id' = :unique_id
-              AND customer_data::jsonb->>'phone1' IS NOT NULL
               AND phone = :phone
-              AND phone = customer_data::jsonb->>'phone1'
+              AND customer_data ILIKE :unique_pattern               
             ORDER BY date_added DESC
             LIMIT 1
         ";
@@ -432,7 +459,7 @@ function fetch_phone1_status_from_db(int $customerId, string $phone, string $uni
         $stmt->execute([
             ':cid' => $customerId,
             ':phone' => $phone,
-            ':unique_id' => $uniqueId,
+            ':unique_pattern' => '%' . $uniqueId . '%',
         ]);
         $row = $stmt->fetch();
 
@@ -456,7 +483,7 @@ function fetch_phone1_status_from_db(int $customerId, string $phone, string $uni
         $stmt->execute([
             ':cid' => $customerId,
             ':phone' => $phone,
-            ':unique_id' => $uniqueId,
+            ':unique_pattern' => '%' . $uniqueId . '%',
         ]);
         $row = $stmt->fetch();
         if (isset($row['system_disposition'])) {
