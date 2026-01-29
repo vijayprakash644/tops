@@ -221,8 +221,8 @@ function handle_index_request(): void
         if ($dbPhone1Status !== '') {
             $errorInfo1 = $dbPhone1Status;
         } else {
-            // fallback to current status
-            $errorInfo1 = $statusNow;
+            // fallback to unknown/blank rather than current status
+            $errorInfo1 = 'UNKNOWN';
         }
 
         // Phone2 errorInfo only when there really is a second phone
@@ -455,6 +455,13 @@ function fetch_phone1_status_from_db(int $customerId, string $phone, string $uni
             LIMIT 1
         ";
 
+        log_event('db_lookup', 'Executing lookup', [
+            'customerId' => $customerId,
+            'phone' => $phone,
+            'uniqueId' => $uniqueId,
+            'sql' => trim($sql),
+        ]);
+
         $stmt = $pdo->prepare($sql);
         $stmt->execute([
             ':cid' => $customerId,
@@ -479,6 +486,13 @@ function fetch_phone1_status_from_db(int $customerId, string $phone, string $uni
             sleep($sleepSeconds);
         }
 
+        log_event('db_lookup', 'Executing lookup (retry)', [
+            'customerId' => $customerId,
+            'phone' => $phone,
+            'uniqueId' => $uniqueId,
+            'sql' => trim($sql),
+        ]);
+
         $stmt = $pdo->prepare($sql);
         $stmt->execute([
             ':cid' => $customerId,
@@ -490,7 +504,34 @@ function fetch_phone1_status_from_db(int $customerId, string $phone, string $uni
             return trim((string)$row['system_disposition']);
         }
 
-        log_event('db_lookup', 'No data after retry', [
+        log_event('db_lookup', 'No data after retry, waiting 2s for another attempt', [
+            'customerId' => $customerId,
+            'phone' => $phone,
+            'uniqueId' => $uniqueId,
+            'sql' => trim($sql),
+        ]);
+
+        sleep(2);
+
+        log_event('db_lookup', 'Executing lookup (second retry)', [
+            'customerId' => $customerId,
+            'phone' => $phone,
+            'uniqueId' => $uniqueId,
+            'sql' => trim($sql),
+        ]);
+
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([
+            ':cid' => $customerId,
+            ':phone' => $phone,
+            ':unique_pattern' => '%' . $uniqueId . '%',
+        ]);
+        $row = $stmt->fetch();
+        if (isset($row['system_disposition'])) {
+            return trim((string)$row['system_disposition']);
+        }
+
+        log_event('db_lookup', 'No data after second retry', [
             'customerId' => $customerId,
             'phone' => $phone,
             'uniqueId' => $uniqueId,
