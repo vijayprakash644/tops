@@ -940,6 +940,12 @@ function log_event(string $label, string $message, array $data = [], ?string $ch
         $bodyStr = (string) $body;
         $parts[] = $bodyStr === '' ? 'body=[empty]' : 'body=' . $bodyStr;
     }
+    if (isset($data['http_code'])) {
+        $parts[] = 'http_code=' . (string) $data['http_code'];
+    }
+    if (isset($data['error']) && $data['error'] !== '') {
+        $parts[] = 'error=' . (string) $data['error'];
+    }
     if (isset($data['body_len'])) {
         $parts[] = 'body_len=' . (string) $data['body_len'];
     }
@@ -948,6 +954,28 @@ function log_event(string $label, string $message, array $data = [], ?string $ch
         if ($queryJson !== false && $queryJson !== '') {
             $parts[] = 'query=' . $queryJson;
         }
+    }
+
+    // Include any extra fields for debugging (excluding ones already handled above).
+    $handled = [
+        'ok', 'url', 'payload', 'query', 'body', 'body_len', 'http_code', 'error',
+    ];
+    foreach ($data as $key => $value) {
+        if (in_array($key, $handled, true)) {
+            continue;
+        }
+        if (is_array($value)) {
+            $valueJson = json_encode($value, JSON_UNESCAPED_SLASHES);
+            if ($valueJson !== false) {
+                $parts[] = $key . '=' . $valueJson;
+            }
+            continue;
+        }
+        if ($value === null) {
+            $parts[] = $key . '=';
+            continue;
+        }
+        $parts[] = $key . '=' . (string) $value;
     }
 
     $line = implode(' | ', $parts);
