@@ -51,8 +51,6 @@ function handle_index_request(): void
     }
 
     $predictiveStaffId = get_param($_GET, 'userId');
-    $phone1Param = get_param($_GET, 'phone1');
-    $phoneParam = get_param($_GET, 'phone');
     $cstmPhone = get_param($_GET, 'cstmPhone');
 
     $targetTel = get_param($_GET, 'dialledPhone');
@@ -62,12 +60,9 @@ function handle_index_request(): void
 
     $systemDisposition = get_param($_GET, 'systemDisposition');
     $dispositionCode = get_param($_GET, 'dispositionCode');
-    $lastStatus1 = get_param($_GET, 'lastStatus_1');
-    $lastStatus2 = get_param($_GET, 'lastStatus_2');
 
     // Dialing meta
     $phones = parse_phone_list($_GET); // from phoneList JSON if present
-    $phoneLookup = get_phone1_lookup($_GET, $phones);
     $dialIndex = to_int(get_param($_GET, 'shareablePhonesDialIndex', '0'), 0);
     $numAttempts = to_int(get_param($_GET, 'numAttempts', '1'), 1);
     if ($cstmPhone !== '' && ($dialIndex >= 1 || $targetTel === '')) {
@@ -185,13 +180,9 @@ function handle_index_request(): void
         $callEndTime      = get_param($_GET, 'callEndTime', $now);
         $subCtiHistoryId  = get_param($_GET, 'subCtiHistoryId', $callId);
 
-        // Resolve phone1 status from DB (your spec)
-        $resolvedPhone1 = '';
-        if ($customerId > 0 && $phoneLookup !== '') {
-            $resolvedPhone1 = fetch_phone1_status_from_db($customerId, $phoneLookup, $callId);
-        }
-        $phone1Failed = ($resolvedPhone1 !== '' && strtoupper($resolvedPhone1) !== 'CONNECTED');
-        $errorInfo = $phone1Failed ? $resolvedPhone1 : '';
+        // Resolve phone1 status from local state (set on phone1 callback)
+        $phone1State = load_phone1_state(phone1_state_key($customerId, $callId));
+        $errorInfo = isset($phone1State['phone1Status']) ? (string) $phone1State['phone1Status'] : '';
 
         $payload = build_call_end_payload(
             $callId,
@@ -211,10 +202,10 @@ function handle_index_request(): void
 
         $endpointPath = '/fasthelp5-server/service/callmanage/predictiveCallApiService/createCallEnd.json';
 
-        log_event('decision', 'Phone2 connected -> createCallEnd (with phone1 errorInfo from DB if failed)', [
+        log_event('decision', 'Phone2 connected -> createCallEnd (with phone1 errorInfo from state if available)', [
             'callId' => $callId,
             'dialIndex' => $dialIndex,
-            'resolvedPhone1' => $resolvedPhone1,
+            'resolvedPhone1' => $errorInfo,
             'phones' => $phones,
             'errorInfo' => $errorInfo,
         ]);
@@ -223,14 +214,8 @@ function handle_index_request(): void
         // Neither phone connected -> NotAnswer
         $callTime = get_param($_GET, 'callTime', $now);
 
-        // Phone1 errorInfo from DB or current status
-        $dbPhone1Status = '';
-        if ($customerId > 0 && $phoneLookup !== '') {
-            $dbPhone1Status = fetch_phone1_status_from_db($customerId, $phoneLookup, $callId);
-        }
-
         if ($hasPhone2 && $dialIndex === 0) {
-            $phone1Status = $dbPhone1Status !== '' ? $dbPhone1Status : ($lastStatus1 !== '' ? $lastStatus1 : 'UNKNOWN');
+            $phone1Status = $statusNow;
             $stateKey = phone1_state_key($customerId, $callId);
             save_phone1_state($stateKey, [
                 'customerId' => $customerId,
@@ -257,11 +242,8 @@ function handle_index_request(): void
 
         if (isset($phone1State['phone1Status']) && $phone1State['phone1Status'] !== '') {
             $errorInfo1 = (string) $phone1State['phone1Status'];
-        } elseif ($dbPhone1Status !== '') {
-            $errorInfo1 = $dbPhone1Status;
         } else {
-            // fallback to lastStatus_1 when DB has not caught up
-            $errorInfo1 = $lastStatus1 !== '' ? $lastStatus1 : 'UNKNOWN';
+            $errorInfo1 = 'UNKNOWN';
         }
 
         // Phone2 errorInfo only when there really is a second phone
@@ -386,34 +368,6 @@ function parse_phone_list(array $query): array
     return $phones;
 }
 
-function get_phone1_lookup(array $query, array $phones): string
-{
-    $phone1 = get_param($query, 'phone1');
-    if ($phone1 !== '') {
-        return $phone1;
-    }
-
-    $raw = get_param($query, 'phoneList');
-    if ($raw !== '') {
-        $decoded = json_decode($raw, true);
-        if (is_array($decoded) && isset($decoded['phoneList']) && is_array($decoded['phoneList'])) {
-            $list = array_values(array_filter(array_map('strval', $decoded['phoneList'])));
-            if (isset($list[0]) && $list[0] !== '') {
-                return $list[0];
-            }
-        }
-    }
-
-    if (isset($phones[0]) && $phones[0] !== '') {
-        return (string) $phones[0];
-    }
-
-    $dialled = get_param($query, 'dialledPhone');
-    if ($dialled === '') {
-        $dialled = get_param($query, 'dstPhone');
-    }
-    return $dialled;
-}
 
 function parse_ameyo_time(string $raw): string
 {
@@ -434,165 +388,6 @@ function parse_ameyo_time(string $raw): string
     }
 
     return '';
-}
-
-/**
- * ----------------------------
- * PostgreSQL helpers
- * ----------------------------
- */
-
-function pg_conn(): ?PDO
-{
-    static $pdo = null;
-    if ($pdo instanceof PDO) {
-        return $pdo;
-    }
-
-    $host = env('PG_HOST');
-    $db   = env('PG_DB');
-    $user = env('PG_USER');
-    $pass = env('PG_PASSWORD');
-    $port = env('PG_PORT', '5432');
-
-    if (!$host || !$db || !$user) {
-        log_event('pg_error', 'Missing PG env config');
-        return null;
-    }
-
-    try {
-        $dsn = "pgsql:host={$host};port={$port};dbname={$db}";
-        $pdo = new PDO($dsn, $user, $pass, [
-            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-        ]);
-        return $pdo;
-    } catch (Throwable $e) {
-        log_event('pg_error', 'Connection failed', ['error' => $e->getMessage()]);
-        return null;
-    }
-}
-
-function fetch_phone1_status_from_db(int $customerId, string $phone, string $uniqueId): string
-{
-    $pdo = pg_conn();
-    if (!$pdo) {
-        return '';
-    }
-
-    if ($phone === '') {
-        log_event('db_lookup', 'Skipped lookup (missing phone filters)', [
-            'customerId' => $customerId,
-            'phone' => $phone,
-        ]);
-        return '';
-    }
-
-    try {
-        $sql = "
-            SELECT system_disposition, phone, customer_id, date_added
-            FROM call_history o
-            WHERE customer_id = :cid
-              AND phone = :phone
-              AND customer_data ILIKE :unique_pattern               
-            ORDER BY date_added DESC
-            LIMIT 1
-        ";
-
-        log_event('db_lookup', 'Executing lookup', [
-            'customerId' => $customerId,
-            'phone' => $phone,
-            'uniqueId' => $uniqueId,
-            'sql' => trim($sql),
-        ]);
-
-        $stmt = $pdo->prepare($sql);
-        $stmt->execute([
-            ':cid' => $customerId,
-            ':phone' => $phone,
-            ':unique_pattern' => '%' . $uniqueId . '%',
-        ]);
-        $row = $stmt->fetch();
-
-        if (isset($row['system_disposition'])) {
-            return trim((string)$row['system_disposition']);
-        }
-
-        log_event('db_lookup', 'No data for customer/phone, retrying after sleep', [
-            'customerId' => $customerId,
-            'phone' => $phone,
-            'uniqueId' => $uniqueId,
-            'sql' => trim($sql),
-        ]);
-
-        $sleepSeconds = (int) env('DB_LOOKUP_SLEEP_SECONDS', '1');
-        if ($sleepSeconds > 0) {
-            sleep($sleepSeconds);
-        }
-
-        log_event('db_lookup', 'Executing lookup (retry)', [
-            'customerId' => $customerId,
-            'phone' => $phone,
-            'uniqueId' => $uniqueId,
-            'sql' => trim($sql),
-        ]);
-
-        $stmt = $pdo->prepare($sql);
-        $stmt->execute([
-            ':cid' => $customerId,
-            ':phone' => $phone,
-            ':unique_pattern' => '%' . $uniqueId . '%',
-        ]);
-        $row = $stmt->fetch();
-        if (isset($row['system_disposition'])) {
-            return trim((string)$row['system_disposition']);
-        }
-
-        log_event('db_lookup', 'No data after retry, waiting 2s for another attempt', [
-            'customerId' => $customerId,
-            'phone' => $phone,
-            'uniqueId' => $uniqueId,
-            'sql' => trim($sql),
-        ]);
-
-        sleep(2);
-
-        log_event('db_lookup', 'Executing lookup (second retry)', [
-            'customerId' => $customerId,
-            'phone' => $phone,
-            'uniqueId' => $uniqueId,
-            'sql' => trim($sql),
-        ]);
-
-        $stmt = $pdo->prepare($sql);
-        $stmt->execute([
-            ':cid' => $customerId,
-            ':phone' => $phone,
-            ':unique_pattern' => '%' . $uniqueId . '%',
-        ]);
-        $row = $stmt->fetch();
-        if (isset($row['system_disposition'])) {
-            return trim((string)$row['system_disposition']);
-        }
-
-        log_event('db_lookup', 'No data after second retry', [
-            'customerId' => $customerId,
-            'phone' => $phone,
-            'uniqueId' => $uniqueId,
-            'sql' => trim($sql),
-        ]);
-
-        return '';
-    } catch (Throwable $e) {
-        log_event('pg_error', 'Query failed', [
-            'customerId' => $customerId,
-            'phone' => $phone,
-            'uniqueId' => $uniqueId,
-            'sql' => trim($sql),
-            'error' => $e->getMessage(),
-        ]);
-        return '';
-    }
 }
 
 
