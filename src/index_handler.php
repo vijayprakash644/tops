@@ -140,7 +140,11 @@ function handle_index_request(): void
 
         $callStartTime = get_param($_GET, 'callStartTime', $connectedAt !== '' ? $connectedAt : $now);
         $callEndTime   = get_param($_GET, 'callEndTime', $now);
-        $subCtiHistoryId = get_param($_GET, 'customerCRTId', $callId);
+        $subCtiHistoryId = get_param($_GET, 'customerCRTId');
+        if ($subCtiHistoryId === '') {
+            send_error_response('Missing required fields: customerCRTId');
+            return;
+        }
 
         $payload = build_call_end_payload(
             $callId,
@@ -178,7 +182,11 @@ function handle_index_request(): void
 
         $callStartTime    = get_param($_GET, 'callStartTime', $connectedAt !== '' ? $connectedAt : $now);
         $callEndTime      = get_param($_GET, 'callEndTime', $now);
-        $subCtiHistoryId  = get_param($_GET, 'subCtiHistoryId', $callId);
+        $subCtiHistoryId  = get_param($_GET, 'customerCRTId');
+        if ($subCtiHistoryId === '') {
+            send_error_response('Missing required fields: customerCRTId');
+            return;
+        }
 
         // Resolve phone1 status from local state (set on phone1 callback)
         $phone1State = load_phone1_state(phone1_state_key($customerId, $callId));
