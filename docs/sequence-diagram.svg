@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="700" viewBox="0 0 1200 700">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L10,4 L0,8 Z" fill="#333333" />
+    </marker>
+    <style>
+      .label { font: 14px Arial, sans-serif; fill: #111111; }
+      .title { font: 16px Arial, sans-serif; font-weight: bold; fill: #111111; }
+      .lifeline { stroke: #999999; stroke-width: 1; stroke-dasharray: 4 4; }
+      .line { stroke: #333333; stroke-width: 1.5; }
+      .section { stroke: #cccccc; stroke-width: 1; }
+      .note { font: 12px Arial, sans-serif; fill: #333333; }
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="1200" height="700" fill="#ffffff" />
+
+  <!-- Participants -->
+  <text class="title" x="80" y="40">Ameyo Dialer</text>
+  <text class="title" x="360" y="40">PHP Relay</text>
+  <text class="title" x="660" y="40">State Store</text>
+  <text class="title" x="960" y="40">TopS.II / FastHelp</text>
+
+  <!-- Lifelines -->
+  <line class="lifeline" x1="120" y1="60" x2="120" y2="660" />
+  <line class="lifeline" x1="420" y1="60" x2="420" y2="660" />
+  <line class="lifeline" x1="720" y1="60" x2="720" y2="660" />
+  <line class="lifeline" x1="1020" y1="60" x2="1020" y2="660" />
+
+  <!-- Section: Call Start -->
+  <text class="title" x="20" y="90">Call Start</text>
+  <line class="section" x1="20" y1="100" x2="1180" y2="100" />
+
+  <line class="line" x1="120" y1="140" x2="420" y2="140" marker-end="url(#arrow)" />
+  <text class="label" x="150" y="132">GET /call_start.php</text>
+
+  <line class="line" x1="420" y1="170" x2="120" y2="170" marker-end="url(#arrow)" />
+  <text class="label" x="150" y="162">JSON ack</text>
+
+  <line class="line" x1="420" y1="210" x2="1020" y2="210" marker-end="url(#arrow)" />
+  <text class="label" x="470" y="202">POST createCallStart</text>
+
+  <!-- Section: Call End / Not Answer -->
+  <text class="title" x="20" y="280">Call End / Not Answer</text>
+  <line class="section" x1="20" y1="290" x2="1180" y2="290" />
+
+  <line class="line" x1="120" y1="330" x2="420" y2="330" marker-end="url(#arrow)" />
+  <text class="label" x="150" y="322">GET /index.php (phone1 or single)</text>
+
+  <line class="line" x1="420" y1="360" x2="120" y2="360" marker-end="url(#arrow)" />
+  <text class="label" x="150" y="352">JSON ack</text>
+
+  <line class="line" x1="420" y1="400" x2="720" y2="400" marker-end="url(#arrow)" />
+  <text class="label" x="450" y="392">Store phone1 status (if phone2 exists)</text>
+
+  <line class="line" x1="120" y1="450" x2="420" y2="450" marker-end="url(#arrow)" />
+  <text class="label" x="150" y="442">GET /index.php (phone2)</text>
+
+  <line class="line" x1="420" y1="480" x2="720" y2="480" marker-end="url(#arrow)" />
+  <text class="label" x="450" y="472">Load phone1 status</text>
+
+  <line class="line" x1="420" y1="520" x2="1020" y2="520" marker-end="url(#arrow)" />
+  <text class="label" x="470" y="512">POST createCallEnd or createNotAnswer</text>
+
+  <text class="note" x="20" y="620">Note: Dedupe gate suppresses retries; state TTL prevents stale merges.</text>
+</svg>
