@@ -11,7 +11,11 @@ Key integrations:
 - This PHP relay (routing, state, dedupe, logging)
 - TopS.II / FastHelp Web APIs (createCallStart / createCallEnd / createNotAnswer)
 
-## Architecture diagram (Mermaid)
+## Architecture diagram (image)
+
+![Architecture diagram](architecture-diagram.svg)
+
+## Architecture diagram (Mermaid source)
 
 ```mermaid
 flowchart LR

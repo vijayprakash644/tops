@@ -375,7 +375,9 @@ code {
 <li>This PHP relay (routing, state, dedupe, logging)</li>
 <li>TopS.II / FastHelp Web APIs (createCallStart / createCallEnd / createNotAnswer)</li>
 </ul>
-<h2 id="architecture-diagram-mermaid">Architecture diagram (Mermaid)</h2>
+<h2 id="architecture-diagram-image">Architecture diagram (image)</h2>
+<p><img src="architecture-diagram.svg" alt="Architecture diagram"></p>
+<h2 id="architecture-diagram-mermaid-source">Architecture diagram (Mermaid source)</h2>
 <pre><code class="language-mermaid"><div class="mermaid">flowchart LR
     A[Ameyo Dialer] -->|GET callbacks| B[PHP Relay: index.php / call_start.php]
     B -->|Immediate ACK| A

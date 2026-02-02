@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="420" viewBox="0 0 1200 420">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L10,4 L0,8 Z" fill="#333333" />
+    </marker>
+    <style>
+      .box { fill: #ffffff; stroke: #333333; stroke-width: 1.5; rx: 8; ry: 8; }
+      .label { font: 14px Arial, sans-serif; fill: #111111; }
+      .title { font: 16px Arial, sans-serif; font-weight: bold; fill: #111111; }
+      .line { stroke: #333333; stroke-width: 1.5; }
+      .note { font: 12px Arial, sans-serif; fill: #333333; }
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="1200" height="420" fill="#ffffff" />
+
+  <text class="title" x="40" y="40">Integration Architecture</text>
+
+  <!-- Nodes -->
+  <rect class="box" x="40" y="100" width="220" height="80" />
+  <text class="label" x="80" y="145">Ameyo Dialer</text>
+
+  <rect class="box" x="360" y="90" width="260" height="100" />
+  <text class="label" x="400" y="130">PHP Relay</text>
+  <text class="note" x="390" y="155">index.php / call_start.php</text>
+
+  <rect class="box" x="720" y="70" width="220" height="70" />
+  <text class="label" x="760" y="110">State Files</text>
+  <text class="note" x="745" y="130">logs/state</text>
+
+  <rect class="box" x="720" y="170" width="220" height="70" />
+  <text class="label" x="785" y="210">Logs</text>
+  <text class="note" x="750" y="230">logs/*.log</text>
+
+  <rect class="box" x="980" y="100" width="200" height="80" />
+  <text class="label" x="1000" y="145">TopS.II / FastHelp</text>
+
+  <!-- Arrows -->
+  <line class="line" x1="260" y1="140" x2="360" y2="140" marker-end="url(#arrow)" />
+  <text class="note" x="275" y="125">GET callbacks</text>
+
+  <line class="line" x1="360" y1="125" x2="260" y2="125" marker-end="url(#arrow)" />
+  <text class="note" x="270" y="110">ACK</text>
+
+  <line class="line" x1="620" y1="120" x2="720" y2="105" marker-end="url(#arrow)" />
+  <text class="note" x="630" y="95">store/load</text>
+
+  <line class="line" x1="620" y1="160" x2="720" y2="195" marker-end="url(#arrow)" />
+  <text class="note" x="630" y="190">write logs</text>
+
+  <line class="line" x1="620" y1="140" x2="980" y2="140" marker-end="url(#arrow)" />
+  <text class="note" x="690" y="125">POST Web API</text>
+</svg>
