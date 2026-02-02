@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>architecture.md</title>
+<meta http-equiv="Content-type" content="text/html;charset=UTF-8">
+
+<style>
+/* https://github.com/microsoft/vscode/blob/master/extensions/markdown-language-features/media/markdown.css */
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+body {
+	font-family: var(--vscode-markdown-font-family, -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif);
+	font-size: var(--vscode-markdown-font-size, 14px);
+	padding: 0 26px;
+	line-height: var(--vscode-markdown-line-height, 22px);
+	word-wrap: break-word;
+}
+
+#code-csp-warning {
+	position: fixed;
+	top: 0;
+	right: 0;
+	color: white;
+	margin: 16px;
+	text-align: center;
+	font-size: 12px;
+	font-family: sans-serif;
+	background-color:#444444;
+	cursor: pointer;
+	padding: 6px;
+	box-shadow: 1px 1px 1px rgba(0,0,0,.25);
+}
+
+#code-csp-warning:hover {
+	text-decoration: none;
+	background-color:#007acc;
+	box-shadow: 2px 2px 2px rgba(0,0,0,.25);
+}
+
+body.scrollBeyondLastLine {
+	margin-bottom: calc(100vh - 22px);
+}
+
+body.showEditorSelection .code-line {
+	position: relative;
+}
+
+body.showEditorSelection .code-active-line:before,
+body.showEditorSelection .code-line:hover:before {
+	content: "";
+	display: block;
+	position: absolute;
+	top: 0;
+	left: -12px;
+	height: 100%;
+}
+
+body.showEditorSelection li.code-active-line:before,
+body.showEditorSelection li.code-line:hover:before {
+	left: -30px;
+}
+
+.vscode-light.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(0, 0, 0, 0.15);
+}
+
+.vscode-light.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(0, 0, 0, 0.40);
+}
+
+.vscode-light.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+.vscode-dark.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(255, 255, 255, 0.4);
+}
+
+.vscode-dark.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(255, 255, 255, 0.60);
+}
+
+.vscode-dark.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+.vscode-high-contrast.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(255, 160, 0, 0.7);
+}
+
+.vscode-high-contrast.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(255, 160, 0, 1);
+}
+
+.vscode-high-contrast.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+img {
+	max-width: 100%;
+	max-height: 100%;
+}
+
+a {
+	text-decoration: none;
+}
+
+a:hover {
+	text-decoration: underline;
+}
+
+a:focus,
+input:focus,
+select:focus,
+textarea:focus {
+	outline: 1px solid -webkit-focus-ring-color;
+	outline-offset: -1px;
+}
+
+hr {
+	border: 0;
+	height: 2px;
+	border-bottom: 2px solid;
+}
+
+h1 {
+	padding-bottom: 0.3em;
+	line-height: 1.2;
+	border-bottom-width: 1px;
+	border-bottom-style: solid;
+}
+
+h1, h2, h3 {
+	font-weight: normal;
+}
+
+table {
+	border-collapse: collapse;
+}
+
+table > thead > tr > th {
+	text-align: left;
+	border-bottom: 1px solid;
+}
+
+table > thead > tr > th,
+table > thead > tr > td,
+table > tbody > tr > th,
+table > tbody > tr > td {
+	padding: 5px 10px;
+}
+
+table > tbody > tr + tr > td {
+	border-top: 1px solid;
+}
+
+blockquote {
+	margin: 0 7px 0 5px;
+	padding: 0 16px 0 10px;
+	border-left-width: 5px;
+	border-left-style: solid;
+}
+
+code {
+	font-family: Menlo, Monaco, Consolas, "Droid Sans Mono", "Courier New", monospace, "Droid Sans Fallback";
+	font-size: 1em;
+	line-height: 1.357em;
+}
+
+body.wordWrap pre {
+	white-space: pre-wrap;
+}
+
+pre:not(.hljs),
+pre.hljs code > div {
+	padding: 16px;
+	border-radius: 3px;
+	overflow: auto;
+}
+
+pre code {
+	color: var(--vscode-editor-foreground);
+	tab-size: 4;
+}
+
+/** Theming */
+
+.vscode-light pre {
+	background-color: rgba(220, 220, 220, 0.4);
+}
+
+.vscode-dark pre {
+	background-color: rgba(10, 10, 10, 0.4);
+}
+
+.vscode-high-contrast pre {
+	background-color: rgb(0, 0, 0);
+}
+
+.vscode-high-contrast h1 {
+	border-color: rgb(0, 0, 0);
+}
+
+.vscode-light table > thead > tr > th {
+	border-color: rgba(0, 0, 0, 0.69);
+}
+
+.vscode-dark table > thead > tr > th {
+	border-color: rgba(255, 255, 255, 0.69);
+}
+
+.vscode-light h1,
+.vscode-light hr,
+.vscode-light table > tbody > tr + tr > td {
+	border-color: rgba(0, 0, 0, 0.18);
+}
+
+.vscode-dark h1,
+.vscode-dark hr,
+.vscode-dark table > tbody > tr + tr > td {
+	border-color: rgba(255, 255, 255, 0.18);
+}
+
+</style>
+
+<style>
+/* Tomorrow Theme */
+/* http://jmblog.github.com/color-themes-for-google-code-highlightjs */
+/* Original theme - https://github.com/chriskempson/tomorrow-theme */
+
+/* Tomorrow Comment */
+.hljs-comment,
+.hljs-quote {
+	color: #8e908c;
+}
+
+/* Tomorrow Red */
+.hljs-variable,
+.hljs-template-variable,
+.hljs-tag,
+.hljs-name,
+.hljs-selector-id,
+.hljs-selector-class,
+.hljs-regexp,
+.hljs-deletion {
+	color: #c82829;
+}
+
+/* Tomorrow Orange */
+.hljs-number,
+.hljs-built_in,
+.hljs-builtin-name,
+.hljs-literal,
+.hljs-type,
+.hljs-params,
+.hljs-meta,
+.hljs-link {
+	color: #f5871f;
+}
+
+/* Tomorrow Yellow */
+.hljs-attribute {
+	color: #eab700;
+}
+
+/* Tomorrow Green */
+.hljs-string,
+.hljs-symbol,
+.hljs-bullet,
+.hljs-addition {
+	color: #718c00;
+}
+
+/* Tomorrow Blue */
+.hljs-title,
+.hljs-section {
+	color: #4271ae;
+}
+
+/* Tomorrow Purple */
+.hljs-keyword,
+.hljs-selector-tag {
+	color: #8959a8;
+}
+
+.hljs {
+	display: block;
+	overflow-x: auto;
+	color: #4d4d4c;
+	padding: 0.5em;
+}
+
+.hljs-emphasis {
+	font-style: italic;
+}
+
+.hljs-strong {
+	font-weight: bold;
+}
+</style>
+
+<style>
+/*
+ * Markdown PDF CSS
+ */
+
+ body {
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif, "Meiryo";
+	padding: 0 12px;
+}
+
+pre {
+	background-color: #f8f8f8;
+	border: 1px solid #cccccc;
+	border-radius: 3px;
+	overflow-x: auto;
+	white-space: pre-wrap;
+	overflow-wrap: break-word;
+}
+
+pre:not(.hljs) {
+	padding: 23px;
+	line-height: 19px;
+}
+
+blockquote {
+	background: rgba(127, 127, 127, 0.1);
+	border-color: rgba(0, 122, 204, 0.5);
+}
+
+.emoji {
+	height: 1.4em;
+}
+
+code {
+	font-size: 14px;
+	line-height: 19px;
+}
+
+/* for inline code */
+:not(pre):not(.hljs) > code {
+	color: #C9AE75; /* Change the old color so it seems less like an error */
+	font-size: inherit;
+}
+
+/* Page Break : use <div class="page"/> to insert page break
+-------------------------------------------------------- */
+.page {
+	page-break-after: always;
+}
+
+</style>
+
+<script src="https://unpkg.com/mermaid/dist/mermaid.min.js"></script>
+</head>
+<body>
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: document.body.classList.contains('vscode-dark') || document.body.classList.contains('vscode-high-contrast')
+          ? 'dark'
+          : 'default'
+    });
+  </script>
+<h1 id="integration-architecture-and-operational-notes">Integration Architecture and Operational Notes</h1>
+<p>This document describes the end-to-end integration between Ameyo and TopS.II (FastHelp) via this PHP relay, including data flows, decision logic, state handling, and practical debugging steps.</p>
+<h2 id="system-overview">System overview</h2>
+<p>The relay receives GET callbacks from Ameyo, immediately returns a small JSON acknowledgment, and then asynchronously forwards the appropriate payload to TopS.II Web APIs.</p>
+<p>Key integrations:</p>
+<ul>
+<li>Ameyo Dialer (callback source)</li>
+<li>This PHP relay (routing, state, dedupe, logging)</li>
+<li>TopS.II / FastHelp Web APIs (createCallStart / createCallEnd / createNotAnswer)</li>
+</ul>
+<h2 id="architecture-diagram-mermaid">Architecture diagram (Mermaid)</h2>
+<pre><code class="language-mermaid"><div class="mermaid">flowchart LR
+    A[Ameyo Dialer] -->|GET callbacks| B[PHP Relay: index.php / call_start.php]
+    B -->|Immediate ACK| A
+    B --> C[State files: logs/state]
+    B --> D[Logs: logs/*.log]
+    B -->|POST form json| E[TopS.II / FastHelp APIs]
+</div></code></pre>
+<h2 id="sequence-diagram-image">Sequence diagram (image)</h2>
+<p><img src="sequence-diagram.svg" alt="Sequence diagram"></p>
+<h2 id="sequence-diagram-mermaid-source">Sequence diagram (Mermaid source)</h2>
+<pre><code class="language-mermaid"><div class="mermaid">sequenceDiagram
+    participant A as Ameyo Dialer
+    participant B as PHP Relay
+    participant C as State Store
+    participant D as TopS.II / FastHelp
+
+    rect rgb(245,245,245)
+    note over A,B: Call Start
+    A->>B: GET /call_start.php
+    B-->>A: JSON ack
+    B->>D: POST createCallStart
+    end
+
+    rect rgb(245,245,245)
+    note over A,B: Call End / Not Answer
+    A->>B: GET /index.php (phone1 or single)
+    B-->>A: JSON ack
+    B->>C: Store phone1 status (if phone2 exists)
+    A->>B: GET /index.php (phone2)
+    B->>C: Load phone1 status
+    B->>D: POST createCallEnd or createNotAnswer
+    end
+</div></code></pre>
+<h2 id="main-components">Main components</h2>
+<ul>
+<li>
+<p>Ameyo Dialer</p>
+<ul>
+<li>Sends GET callbacks per call attempt and call events.</li>
+<li>Provides parameters like <code>unique_id</code>, <code>customerCRTId</code>, <code>shareablePhonesDialIndex</code>, <code>phoneList</code>, <code>systemDisposition</code>.</li>
+</ul>
+</li>
+<li>
+<p>PHP Relay</p>
+<ul>
+<li><code>index.php</code> -&gt; <code>handle_index_request()</code> (Call End / Not Answer routing)</li>
+<li><code>call_start.php</code> -&gt; <code>handle_call_start_request()</code> (Call Start)</li>
+<li>Dedupe gate prevents duplicate upstream calls.</li>
+<li>Phone1 state storage used to combine phone1+phone2 in two-phone flows.</li>
+</ul>
+</li>
+<li>
+<p>TopS.II / FastHelp API endpoints</p>
+<ul>
+<li><code>createCallStart.json</code></li>
+<li><code>createCallEnd.json</code></li>
+<li><code>createNotAnswer.json</code></li>
+</ul>
+</li>
+</ul>
+<h2 id="primary-flows">Primary flows</h2>
+<h3 id="call-start-callstartphp">Call Start (<code>call_start.php</code>)</h3>
+<ul>
+<li>Trigger: Ameyo sends call-start callback.</li>
+<li>Mapping:
+<ul>
+<li><code>callId</code> from <code>callId</code> or <code>cs_unique_id</code> or <code>crm_push_generated_time</code> or <code>sessionId</code></li>
+<li><code>predictiveStaffId</code> from <code>userId</code></li>
+<li><code>targetTel</code> from <code>phone</code> or <code>displayPhone</code> or <code>dialledPhone</code> or <code>dstPhone</code></li>
+</ul>
+</li>
+<li>Action: Send <code>createCallStart</code> to TopS.II.</li>
+</ul>
+<h3 id="call-end--not-answer-indexphp">Call End / Not Answer (<code>index.php</code>)</h3>
+<p>Decision inputs:</p>
+<ul>
+<li><code>systemDisposition</code> and <code>dispositionCode</code></li>
+<li><code>shareablePhonesDialIndex</code></li>
+<li><code>phoneList</code> (JSON)</li>
+<li><code>customerCRTId</code> (required for Call End)</li>
+</ul>
+<p>Routing rules:</p>
+<ul>
+<li>Phone1 connected (<code>systemDisposition=CONNECTED</code> and <code>shareablePhonesDialIndex=0</code>):
+<ul>
+<li>Send <code>createCallEnd</code> with <code>subCtiHistoryId = customerCRTId</code>.</li>
+</ul>
+</li>
+<li>Phone2 connected (<code>systemDisposition=CONNECTED</code> and <code>shareablePhonesDialIndex&gt;=1</code>):
+<ul>
+<li>Send <code>createCallEnd</code> with phone1 errorInfo (from state) and <code>subCtiHistoryId = customerCRTId</code>.</li>
+</ul>
+</li>
+<li>Not connected:
+<ul>
+<li>Single phone: send <code>createNotAnswer</code> immediately with <code>errorInfo1 = current status</code>.</li>
+<li>Two phones:
+<ul>
+<li>Phone1 callback (dialIndex=0): store phone1 status and wait.</li>
+<li>Phone2 callback (dialIndex&gt;=1): combine stored phone1 status + current phone2 status and send <code>createNotAnswer</code>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<h2 id="state-handling-two-phone-flow">State handling (two-phone flow)</h2>
+<p>Purpose: Avoid DB timing issues by keeping phone1 status locally until phone2 arrives.</p>
+<ul>
+<li>State file stored under <code>logs/state/phone1_&lt;hash&gt;.json</code></li>
+<li>Key: <code>customerId + callId</code></li>
+<li>Fields: <code>customerId</code>, <code>callId</code>, <code>callTime</code>, <code>phone1Status</code></li>
+<li>TTL: <code>PHONE1_STATE_TTL_SECONDS</code> (default 600s)</li>
+<li>Cleared after sending phone2-based upstream request</li>
+</ul>
+<h2 id="dedupe-gate">Dedupe gate</h2>
+<p>Purpose: Prevent multiple upstream calls for the same callback retry.</p>
+<ul>
+<li>Key: <code>crtObjectId + customerId + callId</code></li>
+<li>Status:
+<ul>
+<li><code>processing</code>: rejects duplicates for a short window</li>
+<li><code>processed</code>: rejects duplicates for a longer window</li>
+</ul>
+</li>
+<li>TTL:
+<ul>
+<li><code>REQUEST_PROCESSING_TTL_SECONDS</code> (default 30s)</li>
+<li><code>REQUEST_DEDUPE_TTL_SECONDS</code> (default 300s)</li>
+</ul>
+</li>
+</ul>
+<h2 id="configuration-env">Configuration (env)</h2>
+<ul>
+<li><code>TEST_BASE_URL</code> / <code>PROD_BASE_URL</code></li>
+<li><code>TEST_API_KEY</code> / <code>PROD_API_KEY</code></li>
+<li><code>INDEX_ENV</code> (<code>TEST</code> or <code>PROD</code>)</li>
+<li><code>ENABLE_REAL_SEND</code> (<code>true</code> to send upstream)</li>
+<li><code>PHONE1_STATE_TTL_SECONDS</code></li>
+<li><code>REQUEST_PROCESSING_TTL_SECONDS</code></li>
+<li><code>REQUEST_DEDUPE_TTL_SECONDS</code></li>
+</ul>
+<h2 id="logging">Logging</h2>
+<p>Log files (daily):</p>
+<ul>
+<li><code>logs/call_start-YYYY-MM-DD.log</code></li>
+<li><code>logs/call_end-YYYY-MM-DD.log</code></li>
+<li><code>logs/not_answer-YYYY-MM-DD.log</code></li>
+<li><code>logs/general-YYYY-MM-DD.log</code></li>
+</ul>
+<p>Each entry contains:</p>
+<ul>
+<li><code>request_id</code> for correlation</li>
+<li><code>query</code> payload from Ameyo</li>
+<li><code>decision</code> with chosen flow and errorInfo values</li>
+<li><code>upstream_request</code> / <code>http_client</code> / <code>upstream_response</code></li>
+<li><code>dedupe</code> if a retry was skipped</li>
+<li><code>state</code> when phone1 is stored</li>
+</ul>
+<h2 id="debugging-checklist-crm-side-first">Debugging checklist (CRM-side first)</h2>
+<ol>
+<li>Verify Ameyo callback inputs:
+<ul>
+<li><code>unique_id</code>, <code>customerId</code>, <code>customerCRTId</code>, <code>shareablePhonesDialIndex</code>, <code>phoneList</code></li>
+<li>Confirm <code>systemDisposition</code> and <code>dispositionCode</code> values</li>
+</ul>
+</li>
+<li>Confirm relay received the request:
+<ul>
+<li>Check <code>logs/not_answer-YYYY-MM-DD.log</code> or <code>logs/call_end-YYYY-MM-DD.log</code></li>
+<li>Use <code>request_id</code> to track a single flow</li>
+</ul>
+</li>
+<li>Check dedupe behavior:
+<ul>
+<li>Look for <code>dedupe | Skipped duplicate request</code></li>
+</ul>
+</li>
+<li>Check phone1 state behavior (two-phone flow):
+<ul>
+<li><code>state | Stored phone1 status; waiting for phone2</code></li>
+<li>On phone2 callback, confirm <code>phone1_state_used=true</code> in decision log</li>
+</ul>
+</li>
+<li>Check upstream send:
+<ul>
+<li><code>upstream_request</code> contains payload and URL</li>
+<li><code>http_client</code> shows <code>http_code</code> and <code>error</code> if any</li>
+</ul>
+</li>
+<li>If upstream returns errors:
+<ul>
+<li>Confirm <code>customerCRTId</code> exists in CRM</li>
+<li>Validate <code>callId</code>, <code>callTime</code>, <code>predictiveStaffId</code>, <code>targetTel</code></li>
+</ul>
+</li>
+</ol>
+<h2 id="known-edge-cases-and-handling">Known edge cases and handling</h2>
+<ul>
+<li>Duplicate callbacks from Ameyo:
+<ul>
+<li>Handled by dedupe gate; only first request is sent upstream.</li>
+</ul>
+</li>
+<li>Phone2 arrives before phone1:
+<ul>
+<li><code>errorInfo1</code> will be <code>UNKNOWN</code> (no phone1 state available).</li>
+</ul>
+</li>
+<li>Phone2 never arrives:
+<ul>
+<li>Phone1 state expires after <code>PHONE1_STATE_TTL_SECONDS</code>.</li>
+</ul>
+</li>
+<li>Missing <code>customerCRTId</code> on Call End:
+<ul>
+<li>Request is rejected with a clear error.</li>
+</ul>
+</li>
+</ul>
+<h2 id="change-management-notes">Change management notes</h2>
+<ul>
+<li>Database lookups are intentionally removed to avoid timing inconsistencies.</li>
+<li>Phone1 status is sourced only from the phone1 callback and stored locally.</li>
+<li>NotAnswer does not include <code>subCtiHistoryId</code>.</li>
+</ul>
+
+</body>
+</html>
