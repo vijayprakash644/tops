@@ -47,7 +47,7 @@ function handle_call_start_request(): void
         return;
     }
 
-    $customerCrtId = get_param($_GET, 'customerCRTId');
+    $customerCrtId = get_param($_GET, 'crtObjectId');
 
     $targetTel = get_param($_GET, 'phone');
     if ($targetTel === '') {
