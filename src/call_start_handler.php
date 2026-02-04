@@ -47,8 +47,6 @@ function handle_call_start_request(): void
         return;
     }
 
-    $customerCrtId = get_param($_GET, 'crtObjectId');
-
     $targetTel = get_param($_GET, 'phone');
     if ($targetTel === '') {
         $targetTel = get_param($_GET, 'displayPhone');
@@ -65,14 +63,13 @@ function handle_call_start_request(): void
         return;
     }
 
-    $gate = call_start_gate_check($callId, $predictiveStaffId, $targetTel, $customerCrtId);
+    $gate = call_start_gate_check($callId, $predictiveStaffId, $targetTel);
     if (!$gate['ok']) {
         log_event('dedupe', 'Skipped duplicate call start', [
             'reason' => $gate['reason'],
             'callId' => $callId,
             'predictiveStaffId' => $predictiveStaffId,
             'targetTel' => $targetTel,
-            'customerCRTId' => $customerCrtId,
         ]);
         return;
     }
@@ -96,7 +93,6 @@ function handle_call_start_request(): void
         'callIdSource' => $callIdSource,
         'predictiveStaffId' => $predictiveStaffId,
         'targetTel' => $targetTel,
-        'customerCRTId' => $customerCrtId,
     ]);
 
     $endpointPath = '/fasthelp5-server/service/callmanage/predictiveCallApiService/createCallStart.json';
@@ -104,9 +100,9 @@ function handle_call_start_request(): void
     call_start_gate_complete($gate['key'], $sendResult);
 }
 
-function call_start_gate_check(string $callId, string $predictiveStaffId, string $targetTel, string $customerCrtId): array
+function call_start_gate_check(string $callId, string $predictiveStaffId, string $targetTel): array
 {
-    $key = sha1($callId . '|' . $predictiveStaffId . '|' . $targetTel . '|' . $customerCrtId);
+    $key = sha1($callId . '|' . $predictiveStaffId . '|' . $targetTel);
     $stateDir = __DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . 'logs' . DIRECTORY_SEPARATOR . 'state';
     if (!is_dir($stateDir)) {
         mkdir($stateDir, 0775, true);
@@ -140,7 +136,6 @@ function call_start_gate_check(string $callId, string $predictiveStaffId, string
         'callId' => $callId,
         'predictiveStaffId' => $predictiveStaffId,
         'targetTel' => $targetTel,
-        'customerCRTId' => $customerCrtId,
         'updatedAt' => date('Y-m-d H:i:s'),
     ];
     file_put_contents($path, json_encode($state, JSON_UNESCAPED_SLASHES), LOCK_EX);
