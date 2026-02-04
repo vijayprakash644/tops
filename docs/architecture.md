@@ -15,47 +15,12 @@ Key integrations:
 
 ![Architecture diagram](architecture-diagram.svg)
 
-## Architecture diagram (Mermaid source)
 
-```mermaid
-flowchart LR
-    A[Ameyo Dialer] -->|GET callbacks| B[PHP Relay: index.php / call_start.php]
-    B -->|Immediate ACK| A
-    B --> C[State files: logs/state]
-    B --> D[Logs: logs/*.log]
-    B -->|POST form json| E[TopS.II / FastHelp APIs]
-```
 
 ## Sequence diagram (image)
 
 ![Sequence diagram](sequence-diagram.svg)
 
-## Sequence diagram (Mermaid source)
-
-```mermaid
-sequenceDiagram
-    participant A as Ameyo Dialer
-    participant B as PHP Relay
-    participant C as State Store
-    participant D as TopS.II / FastHelp
-
-    rect rgb(245,245,245)
-    note over A,B: Call Start
-    A->>B: GET /call_start.php
-    B-->>A: JSON ack
-    B->>D: POST createCallStart
-    end
-
-    rect rgb(245,245,245)
-    note over A,B: Call End / Not Answer
-    A->>B: GET /index.php (phone1 or single)
-    B-->>A: JSON ack
-    B->>C: Store phone1 status (if phone2 exists)
-    A->>B: GET /index.php (phone2)
-    B->>C: Load phone1 status
-    B->>D: POST createCallEnd or createNotAnswer
-    end
-```
 
 ## Main components
 
@@ -80,15 +45,15 @@ sequenceDiagram
 
 - Trigger: Ameyo sends call-start callback.
 - Mapping:
-  - `callId` from `callId` or `cs_unique_id` or `crm_push_generated_time` or `sessionId`
+  - `callId` from ` `cs_unique_id`
   - `predictiveStaffId` from `userId`
-  - `targetTel` from `phone` or `displayPhone` or `dialledPhone` or `dstPhone`
+  - `targetTel` from `phone` 
 - Action: Send `createCallStart` to TopS.II.
 
 ### Call End / Not Answer (`index.php`)
 
 Decision inputs:
-- `systemDisposition` and `dispositionCode`
+- `systemDisposition`
 - `shareablePhonesDialIndex`
 - `phoneList` (JSON)
 - `customerCRTId` (required for Call End)
@@ -156,7 +121,7 @@ Each entry contains:
 
 1) Verify Ameyo callback inputs:
    - `unique_id`, `customerId`, `customerCRTId`, `shareablePhonesDialIndex`, `phoneList`
-   - Confirm `systemDisposition` and `dispositionCode` values
+   - Confirm `systemDisposition`  value
 2) Confirm relay received the request:
    - Check `logs/not_answer-YYYY-MM-DD.log` or `logs/call_end-YYYY-MM-DD.log`
    - Use `request_id` to track a single flow

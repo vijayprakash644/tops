@@ -58,8 +58,7 @@ function handle_index_request(): void
         $targetTel = get_param($_GET, 'dstPhone');
     }
 
-    $systemDisposition = get_param($_GET, 'systemDisposition');
-    $dispositionCode = get_param($_GET, 'dispositionCode');
+    $systemDisposition = get_param($_GET, 'systemDisposition');    
 
     // Dialing meta
     $phones = parse_phone_list($_GET); // from phoneList JSON if present
@@ -73,7 +72,7 @@ function handle_index_request(): void
     $isConnected = is_connected_from_get($_GET, $systemDisposition);
 
     // Determine status for this attempt
-    $statusNow = pick_error_info($dispositionCode, $systemDisposition);
+    $statusNow = $systemDisposition;
     $now = date('Y-m-d H:i:s');
 
     // Very simple phone count from current request only
@@ -331,17 +330,6 @@ function to_int(string $value, int $default): int
     if ($value === '') return $default;
     if (!is_numeric($value)) return $default;
     return (int)$value;
-}
-
-function pick_error_info(string $dispositionCode, string $systemDisposition): string
-{
-    if ($dispositionCode !== '') {
-        return $dispositionCode;
-    }
-    if ($systemDisposition !== '') {
-        return $systemDisposition;
-    }
-    return 'UNKNOWN';
 }
 
 function is_connected_from_get(array $query, string $systemDisposition): bool
