@@ -22,7 +22,7 @@
 
   <rect class="box" x="320" y="80" width="220" height="70" />
   <text class="label" x="360" y="122">APIcc</text>
-  <text class="note" x="340" y="142">/receivedata1/index.php</text>
+  <text class="note" x="340" y="142">/teijin/index.php</text>
 
   <rect class="box" x="600" y="80" width="240" height="70" />
   <text class="label" x="640" y="122">Ameyo Upload API</text>
