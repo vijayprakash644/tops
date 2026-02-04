@@ -19,7 +19,7 @@ function handle_call_start_request(): void
             'query' => $_GET,
         ]
     );
-    send_dummy_response_and_continue();
+    send_empty_response_and_continue();
 
     $callId = get_param($_GET, 'callId');
     $callIdSource = 'callId';
@@ -47,6 +47,8 @@ function handle_call_start_request(): void
         return;
     }
 
+    $customerCrtId = get_param($_GET, 'customerCRTId');
+
     $targetTel = get_param($_GET, 'phone');
     if ($targetTel === '') {
         $targetTel = get_param($_GET, 'displayPhone');
@@ -60,6 +62,18 @@ function handle_call_start_request(): void
 
     if ($targetTel === '') {
         send_error_response('Missing required fields: phone');
+        return;
+    }
+
+    $gate = call_start_gate_check($callId, $predictiveStaffId, $targetTel, $customerCrtId);
+    if (!$gate['ok']) {
+        log_event('dedupe', 'Skipped duplicate call start', [
+            'reason' => $gate['reason'],
+            'callId' => $callId,
+            'predictiveStaffId' => $predictiveStaffId,
+            'targetTel' => $targetTel,
+            'customerCRTId' => $customerCrtId,
+        ]);
         return;
     }
 
@@ -82,8 +96,69 @@ function handle_call_start_request(): void
         'callIdSource' => $callIdSource,
         'predictiveStaffId' => $predictiveStaffId,
         'targetTel' => $targetTel,
+        'customerCRTId' => $customerCrtId,
     ]);
 
     $endpointPath = '/fasthelp5-server/service/callmanage/predictiveCallApiService/createCallStart.json';
-    send_or_log_request($endpointPath, $payload);
+    $sendResult = send_or_log_request($endpointPath, $payload);
+    call_start_gate_complete($gate['key'], $sendResult);
+}
+
+function call_start_gate_check(string $callId, string $predictiveStaffId, string $targetTel, string $customerCrtId): array
+{
+    $key = sha1($callId . '|' . $predictiveStaffId . '|' . $targetTel . '|' . $customerCrtId);
+    $stateDir = __DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . 'logs' . DIRECTORY_SEPARATOR . 'state';
+    if (!is_dir($stateDir)) {
+        mkdir($stateDir, 0775, true);
+    }
+    $path = $stateDir . DIRECTORY_SEPARATOR . 'call_start_' . $key . '.json';
+    $state = [];
+    if (is_file($path)) {
+        $raw = file_get_contents($path);
+        $decoded = json_decode((string) $raw, true);
+        if (is_array($decoded)) {
+            $state = $decoded;
+        }
+    }
+
+    $processingTtl = (int) env('REQUEST_PROCESSING_TTL_SECONDS', '30');
+    $dedupeTtl = (int) env('REQUEST_DEDUPE_TTL_SECONDS', '300');
+    $updatedAt = isset($state['updatedAt']) ? strtotime((string) $state['updatedAt']) : 0;
+    $age = $updatedAt > 0 ? (time() - $updatedAt) : PHP_INT_MAX;
+
+    if (!empty($state['status'])) {
+        if ($state['status'] === 'processing' && $age < $processingTtl) {
+            return ['ok' => false, 'reason' => 'processing', 'key' => $key];
+        }
+        if ($state['status'] === 'processed' && $age < $dedupeTtl) {
+            return ['ok' => false, 'reason' => 'processed', 'key' => $key];
+        }
+    }
+
+    $state = [
+        'status' => 'processing',
+        'callId' => $callId,
+        'predictiveStaffId' => $predictiveStaffId,
+        'targetTel' => $targetTel,
+        'customerCRTId' => $customerCrtId,
+        'updatedAt' => date('Y-m-d H:i:s'),
+    ];
+    file_put_contents($path, json_encode($state, JSON_UNESCAPED_SLASHES), LOCK_EX);
+
+    return ['ok' => true, 'reason' => 'new', 'key' => $key];
+}
+
+function call_start_gate_complete(string $key, array $sendResult): void
+{
+    $stateDir = __DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . 'logs' . DIRECTORY_SEPARATOR . 'state';
+    if (!is_dir($stateDir)) {
+        mkdir($stateDir, 0775, true);
+    }
+    $path = $stateDir . DIRECTORY_SEPARATOR . 'call_start_' . $key . '.json';
+    $state = [
+        'status' => $sendResult['ok'] ? 'processed' : 'failed',
+        'result' => $sendResult,
+        'updatedAt' => date('Y-m-d H:i:s'),
+    ];
+    file_put_contents($path, json_encode($state, JSON_UNESCAPED_SLASHES), LOCK_EX);
 }

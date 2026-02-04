@@ -919,6 +919,35 @@ function send_dummy_response_and_continue(): void
     ignore_user_abort(true);
     set_time_limit(0);
 }
+
+function send_empty_response_and_continue(): void
+{
+    if (response_already_sent()) {
+        return;
+    }
+
+    $GLOBALS['ASYNC_RESPONSE_SENT'] = true;
+    http_response_code(200);
+
+    if (function_exists('fastcgi_finish_request')) {
+        fastcgi_finish_request();
+        return;
+    }
+
+    while (ob_get_level() > 0) {
+        ob_end_flush();
+    }
+    flush();
+    if (function_exists('apache_setenv')) {
+        @apache_setenv('no-gzip', '1');
+    }
+    @ini_set('zlib.output_compression', '0');
+    @ini_set('output_buffering', '0');
+    @ini_set('implicit_flush', '1');
+    @ob_implicit_flush(true);
+    ignore_user_abort(true);
+    set_time_limit(0);
+}
 /**
  * Entry
  */
