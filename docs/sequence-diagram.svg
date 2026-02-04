@@ -38,7 +38,7 @@
   <line class="section" x1="20" y1="100" x2="1360" y2="100" />
 
   <line class="line" x1="80" y1="140" x2="260" y2="140" marker-end="url(#arrow)" />
-  <text class="label" x="95" y="132">POST /receivedata1/index.php</text>
+  <text class="label" x="95" y="132">POST /teijin/index.php</text>
 
   <line class="line" x1="260" y1="170" x2="460" y2="170" marker-end="url(#arrow)" />
   <text class="label" x="285" y="162">Upload lead records</text>
