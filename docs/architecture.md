@@ -1,12 +1,15 @@
 # Integration Architecture and Operational Notes
 
-This document describes the end-to-end integration between Ameyo and TopS.II (FastHelp) via this PHP relay, including data flows, decision logic, state handling, and practical debugging steps.
+This document describes the end-to-end integration between TopS.II (FastHelp) and Ameyo via APIcc and this PHP relay, including data flows, decision logic, state handling, and practical debugging steps.
 
 ## System overview
 
-The relay receives GET callbacks from Ameyo, immediately returns a small JSON acknowledgment, and then asynchronously forwards the appropriate payload to TopS.II Web APIs.
+Before dialing starts, TopS.II uses APIcc to upload lead data into Ameyo. After that, Ameyo starts auto dialing based on dialer settings. During dialing, the relay receives GET callbacks from Ameyo, immediately returns a small JSON acknowledgment, and then asynchronously forwards the appropriate payload to TopS.II Web APIs.
 
 Key integrations:
+- TopS.II CRM (lead source)
+- APIcc (lead upload to Ameyo)
+- Ameyo Upload API (lead ingestion)
 - Ameyo Dialer (callback source)
 - This PHP relay (routing, state, dedupe, logging)
 - TopS.II / FastHelp Web APIs (createCallStart / createCallEnd / createNotAnswer)
@@ -24,6 +27,10 @@ Key integrations:
 
 ## Main components
 
+- APIcc (lead upload)
+  - Endpoint: `/teijin/index.php` (POST JSON, `X-API-Key`)
+  - Uploads phone records into Ameyo before dialing starts.
+
 - Ameyo Dialer
   - Sends GET callbacks per call attempt and call events.
   - Provides parameters like `unique_id`, `customerCRTId`, `shareablePhonesDialIndex`, `phoneList`, `systemDisposition`.
@@ -38,6 +45,18 @@ Key integrations:
   - `createCallStart.json`
   - `createCallEnd.json`
   - `createNotAnswer.json`
+
+## Pre-call lead upload flow (TopS.II -> APIcc -> Ameyo)
+
+1) TopS.II (or a feeder system) sends leads to APIcc using the upload endpoint.
+2) APIcc validates auth (`X-API-Key`) and ingests the lead data into Ameyo.
+3) Once leads exist in Ameyo, the dialer starts auto dialing based on configured dialer rules.
+
+APIcc upload summary:
+- `POST /teijin/index.php`
+- `Content-Type: application/json`
+- `X-API-Key` header
+- Body includes `customerRecords[]` with required `phone`, `unique_id`, `type` (leadId), optional `phone2`.
 
 ## Primary flows
 
