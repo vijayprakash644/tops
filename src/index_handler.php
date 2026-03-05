@@ -40,11 +40,8 @@ function handle_index_request(): void
     // sleep(1); // slight delay to ensure response sent before continuing
 
     $callId = get_param($_GET, 'unique_id');
-    $customerId = to_int(get_param($_GET, 'customerId'), 0);
-    $crtObjectId = get_param($_GET, 'crtObjectId');
-    if ($crtObjectId === '') {
-        $crtObjectId = get_param($_GET, 'customerCRTId');
-    }
+    $crtObjectId = get_param($_GET, 'customerCRTId');
+    
     if ($callId === '') {
         send_error_response('Missing required fields: unique_id');
         return;
@@ -54,11 +51,10 @@ function handle_index_request(): void
     $cstmPhone = get_param($_GET, 'cstmPhone');
 
     $targetTel = get_param($_GET, 'dialledPhone');
-    if ($targetTel === '') {
-        $targetTel = get_param($_GET, 'dstPhone');
-    }
-
-    $systemDisposition = get_param($_GET, 'systemDisposition');    
+    
+    $systemDisposition = get_param($_GET, 'systemDisposition');
+    $hangupCauseCode = get_param($_GET, 'hangupCauseCode');
+    $hangupMap = $hangupCauseCode !== '' ? load_hangup_cause_map() : [];
 
     // Dialing meta
     $phones = parse_phone_list($_GET); // from phoneList JSON if present
@@ -70,9 +66,16 @@ function handle_index_request(): void
 
     // Connection detection
     $isConnected = is_connected_from_get($_GET, $systemDisposition);
+    if ($hangupCauseCode !== '') {
+        $isConnected = false;
+        $dialIndex = 0; // treat as phone1 failure for simplicity; we mainly want to capture the failure cause
+    }
 
     // Determine status for this attempt
     $statusNow = $systemDisposition;
+    $phone1StatusFromHangup = $hangupCauseCode !== ''
+        ? resolve_system_disposition_from_hangup_code($hangupCauseCode, $hangupMap)
+        : '';
     $now = date('Y-m-d H:i:s');
 
     // Very simple phone count from current request only
@@ -190,6 +193,9 @@ function handle_index_request(): void
         // Resolve phone1 status from local state (set on phone1 callback)
         $phone1State = load_phone1_state(phone1_state_key($customerId, $callId));
         $errorInfo = isset($phone1State['phone1Status']) ? (string) $phone1State['phone1Status'] : '';
+        if ($errorInfo === '' && $phone1StatusFromHangup !== '') {
+            $errorInfo = $phone1StatusFromHangup;
+        }
 
         $payload = build_call_end_payload(
             $callId,
@@ -222,7 +228,7 @@ function handle_index_request(): void
         $callTime = get_param($_GET, 'callTime', $now);
 
         if ($hasPhone2 && $dialIndex === 0) {
-            $phone1Status = $statusNow;
+            $phone1Status = $phone1StatusFromHangup !== '' ? $phone1StatusFromHangup : $statusNow;
             $stateKey = phone1_state_key($customerId, $callId);
             save_phone1_state($stateKey, [
                 'customerId' => $customerId,
@@ -235,6 +241,7 @@ function handle_index_request(): void
                 'callId' => $callId,
                 'callTime' => $callTime,
                 'phone1Status' => $phone1Status,
+                'hangupCauseCode' => $hangupCauseCode,
             ]);
             request_gate_complete($gate['key'], ['ok' => true, 'status' => 'waiting_phone2']);
             return;
@@ -252,7 +259,7 @@ function handle_index_request(): void
         } elseif (isset($phone1State['phone1Status']) && $phone1State['phone1Status'] !== '') {
             $errorInfo1 = (string) $phone1State['phone1Status'];
         } else {
-            $errorInfo1 = 'UNKNOWN';
+            $errorInfo1 = $phone1StatusFromHangup !== '' ? $phone1StatusFromHangup : 'UNKNOWN';
         }
 
         // Phone2 errorInfo only when there really is a second phone
@@ -364,6 +371,65 @@ function parse_phone_list(array $query): array
     if ($d !== '' && !in_array($d, $phones, true)) $phones[] = $d;
 
     return $phones;
+}
+
+function load_hangup_cause_map(): array
+{
+    static $map = null;
+    if (is_array($map)) {
+        return $map;
+    }
+
+    $path = __DIR__ . DIRECTORY_SEPARATOR . 'hangup_cause_map.php';
+    if (is_file($path)) {
+        $loaded = require $path;
+        if (is_array($loaded)) {
+            $map = $loaded;
+            return $map;
+        }
+    }
+
+    $map = [
+        'code_to_callmanager' => [],
+        'callmanager_to_system' => [],
+        'allowed_system_dispositions' => [],
+    ];
+    return $map;
+}
+
+function normalize_system_disposition(string $value, array $map): string
+{
+    $value = trim($value);
+    if ($value === '') {
+        return '';
+    }
+
+    $lower = strtolower($value);
+    if (isset($map['callmanager_to_system'][$lower])) {
+        return (string) $map['callmanager_to_system'][$lower];
+    }
+
+    $normalized = strtoupper(str_replace(['.', '-', ' '], '_', $value));
+    if (!empty($map['allowed_system_dispositions'])
+        && in_array($normalized, $map['allowed_system_dispositions'], true)) {
+        return $normalized;
+    }
+
+    return $normalized;
+}
+
+function resolve_system_disposition_from_hangup_code(string $code, array $map): string
+{
+    $code = trim($code);
+    if ($code === '') {
+        return '';
+    }
+
+    if (isset($map['code_to_callmanager'][$code])) {
+        return normalize_system_disposition((string) $map['code_to_callmanager'][$code], $map);
+    }
+
+    return '';
 }
 
 
