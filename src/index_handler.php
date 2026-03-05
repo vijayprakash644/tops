@@ -40,6 +40,7 @@ function handle_index_request(): void
     // sleep(1); // slight delay to ensure response sent before continuing
 
     $callId = get_param($_GET, 'unique_id');
+    $customerId = to_int(get_param($_GET, 'customerId'), 0);
     $crtObjectId = get_param($_GET, 'customerCRTId');
     
     if ($callId === '') {
