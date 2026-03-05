@@ -50,7 +50,10 @@ function handle_index_request(): void
     $predictiveStaffId = get_param($_GET, 'userId');
     $cstmPhone = get_param($_GET, 'cstmPhone');
 
-    $targetTel = get_param($_GET, 'dialledPhone');
+    $targetTel = get_param($_GET, 'dialedPhone');
+    if ($targetTel === '') {
+        $targetTel = get_param($_GET, 'dialledPhone');
+    }
     
     $systemDisposition = get_param($_GET, 'systemDisposition');
     $hangupCauseCode = get_param($_GET, 'hangupCauseCode');
@@ -80,6 +83,17 @@ function handle_index_request(): void
 
     // Very simple phone count from current request only
     $hasPhone2 = count($phones) >= 2;
+
+    // Infer phone2 when dialIndex is not provided/incorrect.
+    if ($hasPhone2 && $dialIndex === 0) {
+        $stateKey = phone1_state_key($customerId, $callId);
+        $existingPhone1State = load_phone1_state($stateKey);
+        if (!empty($existingPhone1State)) {
+            $dialIndex = 1;
+        } elseif (isset($phones[1]) && $phones[1] !== '' && $targetTel !== '' && $phones[1] === $targetTel) {
+            $dialIndex = 1;
+        }
+    }
 
     // With the current spec:
     // - API is called when phone2 dialing is finished, or
@@ -365,8 +379,9 @@ function parse_phone_list(array $query): array
     if ($p2 !== '') $phones[] = $p2;
     if ($cstm !== '') $phones[] = $cstm;
 
-    // As last resort: use dialled/dst (single)
-    $d = get_param($query, 'dialledPhone');
+    // As last resort: use dialed/dialled/dst (single)
+    $d = get_param($query, 'dialedPhone');
+    if ($d === '') $d = get_param($query, 'dialledPhone');
     if ($d === '') $d = get_param($query, 'dstPhone');
     if ($d !== '' && !in_array($d, $phones, true)) $phones[] = $d;
 
