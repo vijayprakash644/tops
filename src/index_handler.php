@@ -676,6 +676,10 @@ function request_gate_check(string $crtObjectId, int $customerId, string $callId
         if ($state['status'] === 'processed' && $age < $dedupeTtl) {
             return ['ok' => false, 'reason' => 'processed', 'key' => $key];
         }
+        if ($state['status'] === 'waiting_phone2' && $age < $dedupeTtl) {
+            // allow a follow-up callback for phone2
+            $state = [];
+        }
     }
 
     save_request_state($key, [
@@ -690,7 +694,11 @@ function request_gate_check(string $crtObjectId, int $customerId, string $callId
 
 function request_gate_complete(string $key, array $sendResult): void
 {
-    $status = $sendResult['ok'] ? 'processed' : 'failed';
+    if (($sendResult['status'] ?? '') === 'waiting_phone2') {
+        $status = 'waiting_phone2';
+    } else {
+        $status = $sendResult['ok'] ? 'processed' : 'failed';
+    }
     $state = [
         'status' => $status,
         'result' => $sendResult,
