@@ -47,16 +47,8 @@ function handle_call_start_request(): void
         return;
     }
 
-    $targetTel = get_param($_GET, 'phone');
-    if ($targetTel === '') {
-        $targetTel = get_param($_GET, 'displayPhone');
-    }
-    if ($targetTel === '') {
-        $targetTel = get_param($_GET, 'dialledPhone');
-    }
-    if ($targetTel === '') {
-        $targetTel = get_param($_GET, 'dstPhone');
-    }
+    // Use displayPhone only for call_start to match the visible dialed number.
+    $targetTel = get_param($_GET, 'displayPhone');
 
     if ($targetTel === '') {
         send_error_response('Missing required fields: phone');
