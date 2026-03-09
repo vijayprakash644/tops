@@ -28,16 +28,7 @@ function handle_index_request(): void
     }
 
     $incomingQuery = $_GET;
-    log_event('timing', 'Before dummy response', [
-        'phase' => 'before_dummy_response',
-        'ts' => sprintf('%.6f', microtime(true)),
-    ]);
     send_dummy_response_and_continue();
-    log_event('timing', 'After dummy response', [
-        'phase' => 'after_dummy_response',
-        'ts' => sprintf('%.6f', microtime(true)),
-    ]);
-    // sleep(1); // slight delay to ensure response sent before continuing
 
     $callId = get_param($_GET, 'unique_id');
     $customerId = to_int(get_param($_GET, 'customerId'), 0);
@@ -488,7 +479,7 @@ function build_call_end_payload(
     string $errorInfo = ''
 ): array {
     $body = [
-        'callId' => $callId,
+        'callId' => (int) $callId,  // API spec: callId is Number
         'callStartTime' => $callStartTime,
         'callEndTime' => $callEndTime,
         'subCtiHistoryId' => $subCtiHistoryId,
@@ -509,7 +500,7 @@ function build_call_end_payload(
 function build_not_answer_payload(string $callId, string $callTime, string $errorInfo1, string $errorInfo2 = ''): array
 {
     $body = [
-        'callId' => $callId,
+        'callId' => (int) $callId,  // API spec: callId is Number
         'callTime' => $callTime,
         'errorInfo1' => $errorInfo1,
     ];
@@ -526,7 +517,10 @@ function build_not_answer_payload(string $callId, string $callTime, string $erro
 
 /**
  * ----------------------------
- * State store
+ * Legacy state store (DEPRECATED)
+ * These functions are no longer called by any active code path.
+ * Retained for reference only — safe to remove in a future cleanup.
+ * Active state is now managed via phone1_state_* and request_gate_* functions below.
  * ----------------------------
  */
 

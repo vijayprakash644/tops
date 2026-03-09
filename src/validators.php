@@ -43,7 +43,16 @@ function require_fields(array $data, array $fields): array
 {
     $missing = [];
     foreach ($fields as $field) {
-        if (!array_key_exists($field, $data) || $data[$field] === '' || $data[$field] === null) {
+        if (!array_key_exists($field, $data)) {
+            $missing[] = $field;
+            continue;
+        }
+        $val = $data[$field];
+        // Accept non-zero integers (callId is a Number per spec)
+        if (is_int($val) && $val !== 0) {
+            continue;
+        }
+        if ($val === '' || $val === null || $val === 0) {
             $missing[] = $field;
         }
     }

@@ -1,69 +1,149 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="520" viewBox="0 0 1200 520">
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="620" viewBox="0 0 1200 620">
   <defs>
     <marker id="arrow" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto" markerUnits="strokeWidth">
-      <path d="M0,0 L10,4 L0,8 Z" fill="#333333" />
+      <path d="M0,0 L10,4 L0,8 Z" fill="#444" />
+    </marker>
+    <marker id="arrow-blue" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L10,4 L0,8 Z" fill="#1a6db5" />
+    </marker>
+    <marker id="arrow-orange" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L10,4 L0,8 Z" fill="#c0640a" />
     </marker>
     <style>
-      .box { fill: #ffffff; stroke: #333333; stroke-width: 1.5; rx: 8; ry: 8; }
-      .label { font: 14px Arial, sans-serif; fill: #111111; }
-      .title { font: 16px Arial, sans-serif; font-weight: bold; fill: #111111; }
-      .line { stroke: #333333; stroke-width: 1.5; }
-      .note { font: 12px Arial, sans-serif; fill: #333333; }
+      text { font-family: Arial, sans-serif; }
+      .title  { font-size: 17px; font-weight: bold; fill: #111; }
+      .box-label { font-size: 14px; font-weight: bold; }
+      .sub   { font-size: 11px; fill: #555; }
+      .edge  { font-size: 11px; }
     </style>
   </defs>
 
-  <rect x="0" y="0" width="1200" height="520" fill="#ffffff" />
+  <!-- Background -->
+  <rect x="0" y="0" width="1200" height="620" fill="#f8f9fa" />
 
-  <text class="title" x="40" y="40">Integration Architecture (Lead Upload + Dialer Callbacks)</text>
+  <!-- Title -->
+  <text class="title" x="30" y="38">Integration Architecture — Lead Upload + Dialer Callbacks</text>
 
-  <!-- Pre-call: Lead upload -->
-  <rect class="box" x="40" y="80" width="220" height="70" />
-  <text class="label" x="80" y="122">TopS.II CRM</text>
+  <!-- ═══════════════════════════════════════════════════ -->
+  <!-- ROW 1: Pre-call lead upload chain                  -->
+  <!-- ═══════════════════════════════════════════════════ -->
 
-  <rect class="box" x="320" y="80" width="220" height="70" />
-  <text class="label" x="360" y="122">APIcc</text>
-  <text class="note" x="340" y="142">/teijin/index.php</text>
+  <!-- TopS.II CRM -->
+  <rect x="30" y="60" width="160" height="64" rx="8" fill="#d6eaf8" stroke="#1a6db5" stroke-width="1.5"/>
+  <text class="box-label" fill="#1a6db5" x="110" y="87" text-anchor="middle">TopS.II CRM</text>
+  <text class="sub" x="110" y="106" text-anchor="middle">(lead source)</text>
 
-  <rect class="box" x="600" y="80" width="240" height="70" />
-  <text class="label" x="640" y="122">Ameyo Upload API</text>
+  <!-- APIcc -->
+  <rect x="250" y="60" width="160" height="64" rx="8" fill="#d6eaf8" stroke="#1a6db5" stroke-width="1.5"/>
+  <text class="box-label" fill="#1a6db5" x="330" y="87" text-anchor="middle">APIcc</text>
+  <text class="sub" x="330" y="106" text-anchor="middle">/teijin/index.php</text>
 
-  <rect class="box" x="900" y="80" width="240" height="70" />
-  <text class="label" x="940" y="122">Ameyo Dialer</text>
+  <!-- Ameyo Upload API -->
+  <rect x="470" y="60" width="180" height="64" rx="8" fill="#d5f5e3" stroke="#1e8449" stroke-width="1.5"/>
+  <text class="box-label" fill="#1e8449" x="560" y="87" text-anchor="middle">Ameyo Upload API</text>
+  <text class="sub" x="560" y="106" text-anchor="middle">(REST endpoint)</text>
 
-  <line class="line" x1="260" y1="115" x2="320" y2="115" marker-end="url(#arrow)" />
-  <text class="note" x="270" y="100">POST leads</text>
+  <!-- Ameyo Dialer -->
+  <rect x="710" y="60" width="160" height="64" rx="8" fill="#d5f5e3" stroke="#1e8449" stroke-width="1.5"/>
+  <text class="box-label" fill="#1e8449" x="790" y="87" text-anchor="middle">Ameyo Dialer</text>
+  <text class="sub" x="790" y="106" text-anchor="middle">(predictive engine)</text>
 
-  <line class="line" x1="540" y1="115" x2="600" y2="115" marker-end="url(#arrow)" />
-  <text class="note" x="550" y="100">Upload leads</text>
+  <!-- Lead upload arrows -->
+  <line x1="190" y1="92" x2="248" y2="92" stroke="#444" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text class="edge" fill="#444" x="219" y="86" text-anchor="middle">POST leads</text>
 
-  <line class="line" x1="840" y1="115" x2="900" y2="115" marker-end="url(#arrow)" />
-  <text class="note" x="850" y="100">Leads ready</text>
+  <line x1="410" y1="92" x2="468" y2="92" stroke="#444" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text class="edge" fill="#444" x="439" y="86" text-anchor="middle">Upload</text>
 
-  <!-- Callbacks + relay -->
-  <rect class="box" x="320" y="250" width="260" height="100" />
-  <text class="label" x="360" y="290">PHP Relay</text>
-  <text class="note" x="335" y="315">index.php / call_start.php</text>
+  <line x1="650" y1="92" x2="708" y2="92" stroke="#444" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text class="edge" fill="#444" x="679" y="86" text-anchor="middle">Leads ready</text>
 
-  <rect class="box" x="650" y="230" width="220" height="70" />
-  <text class="label" x="690" y="270">State Files</text>
-  <text class="note" x="675" y="290">logs/state</text>
+  <!-- ═══════════════════════════════════════════════════ -->
+  <!-- ROW 2: Callback relay + storage                    -->
+  <!-- ═══════════════════════════════════════════════════ -->
 
-  <rect class="box" x="650" y="320" width="220" height="70" />
-  <text class="label" x="715" y="360">Logs</text>
-  <text class="note" x="680" y="380">logs/*.log</text>
+  <!-- PHP Relay box -->
+  <rect x="250" y="230" width="220" height="110" rx="8" fill="#fef9e7" stroke="#b7950b" stroke-width="1.5"/>
+  <text class="box-label" fill="#b7950b" x="360" y="257" text-anchor="middle">PHP Relay</text>
+  <text class="sub" x="360" y="275" text-anchor="middle">index.php</text>
+  <text class="sub" x="360" y="292" text-anchor="middle">call_start_handler.php</text>
+  <text class="sub" x="360" y="309" text-anchor="middle">validators.php · http_client.php</text>
 
-  <rect class="box" x="930" y="260" width="220" height="80" />
-  <text class="label" x="950" y="305">TopS.II / FastHelp</text>
+  <!-- State Files -->
+  <rect x="540" y="215" width="180" height="70" rx="8" fill="#fdf2f8" stroke="#7d3c98" stroke-width="1.5"/>
+  <text class="box-label" fill="#7d3c98" x="630" y="244" text-anchor="middle">State Files</text>
+  <text class="sub" x="630" y="263" text-anchor="middle">logs/state/  (phone1, gate)</text>
 
-  <line class="line" x1="900" y1="150" x2="520" y2="250" marker-end="url(#arrow)" />
-  <text class="note" x="680" y="190">GET callbacks</text>
+  <!-- Logs -->
+  <rect x="540" y="305" width="180" height="70" rx="8" fill="#eafaf1" stroke="#1e8449" stroke-width="1.5"/>
+  <text class="box-label" fill="#1e8449" x="630" y="334" text-anchor="middle">Log Files</text>
+  <text class="sub" x="630" y="353" text-anchor="middle">logs/*.log  (structured JSON)</text>
 
-  <line class="line" x1="520" y1="270" x2="900" y2="270" marker-end="url(#arrow)" />
-  <text class="note" x="620" y="255">POST Web API</text>
+  <!-- TopS.II / FastHelp Web API -->
+  <rect x="880" y="225" width="260" height="120" rx="8" fill="#d6eaf8" stroke="#1a6db5" stroke-width="2"/>
+  <text class="box-label" fill="#1a6db5" x="1010" y="252" text-anchor="middle">TopS.II / FastHelp Web API</text>
+  <line x1="892" y1="263" x2="1128" y2="263" stroke="#1a6db5" stroke-width="0.8" stroke-dasharray="4 3"/>
+  <text class="sub" x="1010" y="281" text-anchor="middle">POST createCallStart</text>
+  <text class="sub" x="1010" y="298" text-anchor="middle">POST createCallEnd</text>
+  <text class="sub" x="1010" y="315" text-anchor="middle">POST createNotAnswer</text>
 
-  <line class="line" x1="580" y1="270" x2="650" y2="255" marker-end="url(#arrow)" />
-  <text class="note" x="590" y="240">store/load</text>
+  <!-- Cleanup Cron -->
+  <rect x="540" y="400" width="180" height="60" rx="8" fill="#fdfefe" stroke="#95a5a6" stroke-width="1.5" stroke-dasharray="6 3"/>
+  <text class="box-label" fill="#7f8c8d" x="630" y="425" text-anchor="middle">Cleanup Cron</text>
+  <text class="sub" x="630" y="444" text-anchor="middle">bin/cleanup_state.php</text>
 
-  <line class="line" x1="580" y1="310" x2="650" y2="335" marker-end="url(#arrow)" />
-  <text class="note" x="590" y="335">write logs</text>
+  <!-- ── Callback arrows from Ameyo Dialer ── -->
+
+  <!-- Standard callback (solid) -->
+  <line x1="790" y1="124" x2="430" y2="230" stroke="#1e8449" stroke-width="2" marker-end="url(#arrow-blue)"/>
+  <!-- label midpoint approx (610, 177) -->
+  <text class="edge" fill="#1e8449" x="640" y="168" text-anchor="middle">GET /index.php  (CONNECTED / FAILURE)</text>
+
+  <!-- hangupCauseCode callback (dashed orange) -->
+  <line x1="790" y1="130" x2="430" y2="240" stroke="#c0640a" stroke-width="1.8" stroke-dasharray="7 4" marker-end="url(#arrow-orange)"/>
+  <text class="edge" fill="#c0640a" x="640" y="200" text-anchor="middle">GET /index.php  (hangupCauseCode — SIP pre-dial failure)</text>
+
+  <!-- GET call_start callback -->
+  <line x1="710" y1="92" x2="470" y2="232" stroke="#444" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text class="edge" fill="#444" x="545" y="155" text-anchor="middle">GET /call_start.php</text>
+
+  <!-- Relay → TopS.II (POST Web API) -->
+  <line x1="470" y1="275" x2="878" y2="275" stroke="#1a6db5" stroke-width="2" marker-end="url(#arrow-blue)"/>
+  <text class="edge" fill="#1a6db5" x="674" y="268" text-anchor="middle">POST Web API  (X-FastHelp-API-Key)</text>
+
+  <!-- Relay ↔ State -->
+  <line x1="470" y1="258" x2="538" y2="248" stroke="#7d3c98" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <line x1="538" y1="260" x2="470" y2="272" stroke="#7d3c98" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text class="edge" fill="#7d3c98" x="504" y="244" text-anchor="middle">store/load</text>
+
+  <!-- Relay → Logs -->
+  <line x1="470" y1="310" x2="538" y2="328" stroke="#1e8449" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text class="edge" fill="#1e8449" x="498" y="330" text-anchor="middle">write logs</text>
+
+  <!-- Cron → State -->
+  <line x1="630" y1="400" x2="630" y2="377" stroke="#95a5a6" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+  <text class="edge" fill="#7f8c8d" x="640" y="394" text-anchor="start">expire &amp; delete</text>
+
+  <!-- ═══════════════════════════════════════════════════ -->
+  <!-- Legend                                             -->
+  <!-- ═══════════════════════════════════════════════════ -->
+  <rect x="30" y="490" width="700" height="110" rx="6" fill="#fff" stroke="#ccc" stroke-width="1"/>
+  <text style="font-size:13px; font-weight:bold; fill:#333;" x="44" y="512">Legend</text>
+
+  <!-- solid green callback -->
+  <line x1="50" y1="535" x2="110" y2="535" stroke="#1e8449" stroke-width="2" marker-end="url(#arrow)"/>
+  <text class="sub" x="120" y="539">Standard callback  (CONNECTED / FAILURE / both phones)</text>
+
+  <!-- dashed orange hangupCauseCode -->
+  <line x1="50" y1="560" x2="110" y2="560" stroke="#c0640a" stroke-width="1.8" stroke-dasharray="7 4" marker-end="url(#arrow-orange)"/>
+  <text class="sub" x="120" y="564">hangupCauseCode callback  (SIP pre-dial failure — phone1 only)</text>
+
+  <!-- solid blue POST -->
+  <line x1="50" y1="585" x2="110" y2="585" stroke="#1a6db5" stroke-width="2" marker-end="url(#arrow-blue)"/>
+  <text class="sub" x="120" y="589">POST to TopS.II / FastHelp Web API</text>
+
+  <!-- dashed cron -->
+  <line x1="370" y1="585" x2="430" y2="585" stroke="#95a5a6" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+  <text class="sub" x="440" y="589">Scheduled cron task</text>
+
 </svg>

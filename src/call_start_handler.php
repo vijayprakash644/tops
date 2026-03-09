@@ -68,7 +68,7 @@ function handle_call_start_request(): void
 
     $payload = [
         'predictiveCallCreateCallStart' => [
-            'callId' => $callId,
+            'callId' => (int) $callId,  // API spec: callId is Number
             'predictiveStaffId' => $predictiveStaffId,
             'targetTel' => $targetTel,
         ],

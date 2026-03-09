@@ -1,83 +1,250 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="760" viewBox="0 0 1400 760">
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="1380" viewBox="0 0 1400 1380">
   <defs>
-    <marker id="arrow" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto" markerUnits="strokeWidth">
-      <path d="M0,0 L10,4 L0,8 Z" fill="#333333" />
-    </marker>
+    <marker id="arr"  markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L10,4 L0,8 Z" fill="#333"/></marker>
+    <marker id="arr-b" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L10,4 L0,8 Z" fill="#1a6db5"/></marker>
+    <marker id="arr-g" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L10,4 L0,8 Z" fill="#1e8449"/></marker>
+    <marker id="arr-o" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L10,4 L0,8 Z" fill="#c0640a"/></marker>
+    <marker id="arr-r" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L10,4 L0,8 Z" fill="#922b21"/></marker>
     <style>
-      .label { font: 14px Arial, sans-serif; fill: #111111; }
-      .title { font: 16px Arial, sans-serif; font-weight: bold; fill: #111111; }
-      .lifeline { stroke: #999999; stroke-width: 1; stroke-dasharray: 4 4; }
-      .line { stroke: #333333; stroke-width: 1.5; }
-      .section { stroke: #cccccc; stroke-width: 1; }
-      .note { font: 12px Arial, sans-serif; fill: #333333; }
+      text { font-family: Arial, sans-serif; }
+      .T  { font-size:17px; font-weight:bold; fill:#111; }
+      .P  { font-size:13px; font-weight:bold; }
+      .lbl{ font-size:11px; fill:#333; }
+      .ack{ font-size:10px; fill:#888; }
+      .ll { stroke:#bbb; stroke-width:1; stroke-dasharray:4 4; }
+      .sec{ stroke:none; }
+      .sT { font-size:13px; font-weight:bold; }
+      .note-box { fill:#fffde7; stroke:#f0c040; stroke-width:1; rx:4; }
+      .note-txt  { font-size:10px; fill:#555; }
     </style>
   </defs>
 
-  <rect x="0" y="0" width="1400" height="760" fill="#ffffff" />
+  <rect x="0" y="0" width="1400" height="1380" fill="#f8f9fa"/>
 
-  <!-- Participants -->
-  <text class="title" x="40" y="40">TopS.II CRM</text>
-  <text class="title" x="220" y="40">APIcc</text>
-  <text class="title" x="400" y="40">Ameyo Upload API</text>
-  <text class="title" x="640" y="40">Ameyo Dialer</text>
-  <text class="title" x="880" y="40">PHP Relay</text>
-  <text class="title" x="1080" y="40">State Store</text>
-  <text class="title" x="1260" y="40">TopS.II / FastHelp</text>
+  <!-- ══════════════════════════════════
+       TITLE
+  ══════════════════════════════════ -->
+  <text class="T" x="30" y="36">Sequence Diagram — All Flows</text>
 
-  <!-- Lifelines -->
-  <line class="lifeline" x1="80" y1="60" x2="80" y2="720" />
-  <line class="lifeline" x1="260" y1="60" x2="260" y2="720" />
-  <line class="lifeline" x1="460" y1="60" x2="460" y2="720" />
-  <line class="lifeline" x1="700" y1="60" x2="700" y2="720" />
-  <line class="lifeline" x1="940" y1="60" x2="940" y2="720" />
-  <line class="lifeline" x1="1140" y1="60" x2="1140" y2="720" />
-  <line class="lifeline" x1="1320" y1="60" x2="1320" y2="720" />
+  <!-- ══════════════════════════════════
+       PARTICIPANTS  (x-centres)
+       1: TopS.II CRM      x=80
+       2: APIcc             x=220
+       3: Ameyo Upload API  x=380
+       4: Ameyo Dialer      x=560
+       5: PHP Relay         x=760
+       6: State Store       x=960
+       7: TopS.II FastHelp  x=1160
+  ══════════════════════════════════ -->
 
-  <!-- Section: Lead Upload -->
-  <text class="title" x="20" y="90">Lead Upload (Pre-call)</text>
-  <line class="section" x1="20" y1="100" x2="1360" y2="100" />
+  <!-- Participant boxes -->
+  <rect x="20"   y="50" width="120" height="44" rx="6" fill="#d6eaf8" stroke="#1a6db5" stroke-width="1.5"/>
+  <text class="P" fill="#1a6db5" x="80"   y="78" text-anchor="middle">TopS.II CRM</text>
 
-  <line class="line" x1="80" y1="140" x2="260" y2="140" marker-end="url(#arrow)" />
-  <text class="label" x="95" y="132">POST /teijin/index.php</text>
+  <rect x="155"  y="50" width="130" height="44" rx="6" fill="#d6eaf8" stroke="#1a6db5" stroke-width="1.5"/>
+  <text class="P" fill="#1a6db5" x="220"  y="78" text-anchor="middle">APIcc</text>
 
-  <line class="line" x1="260" y1="170" x2="460" y2="170" marker-end="url(#arrow)" />
-  <text class="label" x="285" y="162">Upload lead records</text>
+  <rect x="295"  y="50" width="170" height="44" rx="6" fill="#d5f5e3" stroke="#1e8449" stroke-width="1.5"/>
+  <text class="P" fill="#1e8449" x="380"  y="78" text-anchor="middle">Ameyo Upload API</text>
 
-  <line class="line" x1="460" y1="200" x2="700" y2="200" marker-end="url(#arrow)" />
-  <text class="label" x="490" y="192">Leads available for dialing</text>
+  <rect x="475"  y="50" width="170" height="44" rx="6" fill="#d5f5e3" stroke="#1e8449" stroke-width="1.5"/>
+  <text class="P" fill="#1e8449" x="560"  y="78" text-anchor="middle">Ameyo Dialer</text>
 
-  <!-- Section: Call Start -->
-  <text class="title" x="20" y="270">Call Start</text>
-  <line class="section" x1="20" y1="280" x2="1360" y2="280" />
+  <rect x="680"  y="50" width="160" height="44" rx="6" fill="#fef9e7" stroke="#b7950b" stroke-width="1.5"/>
+  <text class="P" fill="#b7950b" x="760"  y="78" text-anchor="middle">PHP Relay</text>
 
-  <line class="line" x1="700" y1="320" x2="940" y2="320" marker-end="url(#arrow)" />
-  <text class="label" x="720" y="312">GET /call_start.php</text>
+  <rect x="890"  y="50" width="140" height="44" rx="6" fill="#fdf2f8" stroke="#7d3c98" stroke-width="1.5"/>
+  <text class="P" fill="#7d3c98" x="960"  y="78" text-anchor="middle">State Store</text>
 
-  <line class="line" x1="940" y1="350" x2="700" y2="350" marker-end="url(#arrow)" />
-  <text class="label" x="720" y="342">JSON ack</text>
+  <rect x="1075" y="50" width="210" height="44" rx="6" fill="#d6eaf8" stroke="#1a6db5" stroke-width="2"/>
+  <text class="P" fill="#1a6db5" x="1180" y="78" text-anchor="middle">TopS.II / FastHelp API</text>
 
-  <line class="line" x1="940" y1="390" x2="1320" y2="390" marker-end="url(#arrow)" />
-  <text class="label" x="980" y="382">POST createCallStart</text>
+  <!-- Lifelines (full height) -->
+  <line class="ll" x1="80"   y1="94" x2="80"   y2="1340"/>
+  <line class="ll" x1="220"  y1="94" x2="220"  y2="1340"/>
+  <line class="ll" x1="380"  y1="94" x2="380"  y2="1340"/>
+  <line class="ll" x1="560"  y1="94" x2="560"  y2="1340"/>
+  <line class="ll" x1="760"  y1="94" x2="760"  y2="1340"/>
+  <line class="ll" x1="960"  y1="94" x2="960"  y2="1340"/>
+  <line class="ll" x1="1180" y1="94" x2="1180" y2="1340"/>
 
-  <!-- Section: Call End / Not Answer -->
-  <text class="title" x="20" y="460">Call End / Not Answer</text>
-  <line class="section" x1="20" y1="470" x2="1360" y2="470" />
 
-  <line class="line" x1="700" y1="510" x2="940" y2="510" marker-end="url(#arrow)" />
-  <text class="label" x="720" y="502">GET /index.php (phone1 or single)</text>
+  <!-- ══════════════════════════════════════════════════════
+       SECTION 1 — Lead Upload (Pre-call)   y: 110–240
+  ══════════════════════════════════════════════════════ -->
+  <rect class="sec" x="0" y="108" width="1400" height="142" fill="#e8f4f8" opacity="0.55"/>
+  <text class="sT" fill="#1a6db5" x="14" y="128">① Lead Upload (Pre-call)</text>
+  <line x1="0" y1="132" x2="1400" y2="132" stroke="#1a6db5" stroke-width="0.6" stroke-dasharray="5 4"/>
 
-  <line class="line" x1="940" y1="540" x2="700" y2="540" marker-end="url(#arrow)" />
-  <text class="label" x="720" y="532">JSON ack</text>
+  <line x1="80" y1="158" x2="218" y2="158" stroke="#333" stroke-width="1.5" marker-end="url(#arr)"/>
+  <text class="lbl" x="150" y="152" text-anchor="middle">POST /teijin/index.php (lead data)</text>
 
-  <line class="line" x1="940" y1="580" x2="1140" y2="580" marker-end="url(#arrow)" />
-  <text class="label" x="960" y="572">Store phone1 status (if phone2 exists)</text>
+  <line x1="220" y1="182" x2="378" y2="182" stroke="#333" stroke-width="1.5" marker-end="url(#arr)"/>
+  <text class="lbl" x="300" y="176" text-anchor="middle">Upload lead records</text>
 
-  <line class="line" x1="700" y1="620" x2="940" y2="620" marker-end="url(#arrow)" />
-  <text class="label" x="720" y="612">GET /index.php (phone2)</text>
+  <line x1="380" y1="206" x2="558" y2="206" stroke="#333" stroke-width="1.5" marker-end="url(#arr)"/>
+  <text class="lbl" x="470" y="200" text-anchor="middle">Leads queued for dialing</text>
 
-  <line class="line" x1="940" y1="650" x2="1140" y2="650" marker-end="url(#arrow)" />
-  <text class="label" x="960" y="642">Load phone1 status</text>
+  <line x1="558" y1="230" x2="382" y2="230" stroke="#333" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#arr)"/>
+  <text class="ack" x="470" y="224" text-anchor="middle">200 OK ack</text>
 
-  <line class="line" x1="940" y1="690" x2="1320" y2="690" marker-end="url(#arrow)" />
-  <text class="label" x="980" y="682">POST createCallEnd or createNotAnswer</text>
+
+  <!-- ══════════════════════════════════════════════════════
+       SECTION 2 — Call Start   y: 255–390
+  ══════════════════════════════════════════════════════ -->
+  <rect class="sec" x="0" y="252" width="1400" height="152" fill="#fef9e7" opacity="0.6"/>
+  <text class="sT" fill="#b7950b" x="14" y="272">② Call Start</text>
+  <line x1="0" y1="276" x2="1400" y2="276" stroke="#b7950b" stroke-width="0.6" stroke-dasharray="5 4"/>
+
+  <line x1="558" y1="300" x2="762" y2="300" stroke="#1e8449" stroke-width="1.5" marker-end="url(#arr-g)"/>
+  <text class="lbl" x="660" y="294" text-anchor="middle">GET /call_start.php?cs_unique_id=193421&amp;displayPhone=0312345678&amp;…</text>
+
+  <line x1="760" y1="324" x2="562" y2="324" stroke="#888" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#arr)"/>
+  <text class="ack" x="660" y="318" text-anchor="middle">JSON ack  {status:"ok"}  (fastcgi_finish_request)</text>
+
+  <line x1="760" y1="348" x2="1178" y2="348" stroke="#1a6db5" stroke-width="1.8" marker-end="url(#arr-b)"/>
+  <text class="lbl" x="970" y="342" text-anchor="middle">POST createCallStart  callId:193421 (Number)  targetTel:displayPhone</text>
+
+  <line x1="1178" y1="372" x2="762" y2="372" stroke="#888" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#arr)"/>
+  <text class="ack" x="970" y="366" text-anchor="middle">{result:"success"}</text>
+
+
+  <!-- ══════════════════════════════════════════════════════
+       SECTION 3 — Call End: single phone (phone1 connects)  y: 408–560
+  ══════════════════════════════════════════════════════ -->
+  <rect class="sec" x="0" y="406" width="1400" height="164" fill="#eafaf1" opacity="0.5"/>
+  <text class="sT" fill="#1e8449" x="14" y="426">③ Call End — Phone 1 Connects (Single-phone or phone1 of two-phone)</text>
+  <line x1="0" y1="430" x2="1400" y2="430" stroke="#1e8449" stroke-width="0.6" stroke-dasharray="5 4"/>
+
+  <line x1="558" y1="456" x2="762" y2="456" stroke="#1e8449" stroke-width="1.5" marker-end="url(#arr-g)"/>
+  <text class="lbl" x="660" y="450" text-anchor="middle">GET /index.php?callResult=CONNECTED&amp;callId=193421&amp;displayPhone=0312345678&amp;…</text>
+
+  <line x1="760" y1="480" x2="562" y2="480" stroke="#888" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#arr)"/>
+  <text class="ack" x="660" y="474" text-anchor="middle">JSON ack  (fastcgi_finish_request)</text>
+
+  <!-- dedupe gate note -->
+  <rect x="678" y="488" width="166" height="20" rx="3" fill="#fffde7" stroke="#f0c040" stroke-width="1"/>
+  <text class="note-txt" x="761" y="502" text-anchor="middle">dedupe gate: processing → processed</text>
+
+  <line x1="760" y1="516" x2="1178" y2="516" stroke="#1a6db5" stroke-width="1.8" marker-end="url(#arr-b)"/>
+  <text class="lbl" x="970" y="510" text-anchor="middle">POST createCallEnd  callId:193421 (Number)  [no errorInfo]</text>
+
+  <line x1="1178" y1="540" x2="762" y2="540" stroke="#888" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#arr)"/>
+  <text class="ack" x="970" y="534" text-anchor="middle">{result:"success"}</text>
+
+
+  <!-- ══════════════════════════════════════════════════════
+       SECTION 4 — hangupCauseCode then phone2 connects → Call End  y: 576–780
+  ══════════════════════════════════════════════════════ -->
+  <rect class="sec" x="0" y="574" width="1400" height="216" fill="#fdf2f8" opacity="0.4"/>
+  <text class="sT" fill="#7d3c98" x="14" y="594">④ Call End — hangupCauseCode (phone1 SIP failure) → Phone 2 Connects</text>
+  <line x1="0" y1="598" x2="1400" y2="598" stroke="#7d3c98" stroke-width="0.6" stroke-dasharray="5 4"/>
+
+  <!-- phone1 hangupCauseCode callback -->
+  <line x1="558" y1="624" x2="762" y2="624" stroke="#c0640a" stroke-width="1.5" stroke-dasharray="6 3" marker-end="url(#arr-o)"/>
+  <text class="lbl" fill="#c0640a" x="660" y="618" text-anchor="middle">GET /index.php?hangupCauseCode=487&amp;dialedPhone=0311111111&amp;customerCRTId=193421</text>
+
+  <line x1="760" y1="648" x2="562" y2="648" stroke="#888" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#arr)"/>
+  <text class="ack" x="660" y="642" text-anchor="middle">JSON ack</text>
+
+  <line x1="760" y1="672" x2="958" y2="672" stroke="#7d3c98" stroke-width="1.5" marker-end="url(#arr)"/>
+  <text class="lbl" fill="#7d3c98" x="860" y="666" text-anchor="middle">save phone1_state  (PROVIDER_TEMP_FAILURE, 487)</text>
+
+  <!-- phone2 CONNECTED callback -->
+  <line x1="558" y1="702" x2="762" y2="702" stroke="#1e8449" stroke-width="1.5" marker-end="url(#arr-g)"/>
+  <text class="lbl" x="660" y="696" text-anchor="middle">GET /index.php?callResult=CONNECTED&amp;callId=193421&amp;displayPhone=0322222222&amp;…</text>
+
+  <line x1="760" y1="726" x2="562" y2="726" stroke="#888" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#arr)"/>
+  <text class="ack" x="660" y="720" text-anchor="middle">JSON ack</text>
+
+  <line x1="958" y1="738" x2="762" y2="738" stroke="#7d3c98" stroke-width="1.5" marker-end="url(#arr)"/>
+  <text class="lbl" fill="#7d3c98" x="860" y="732" text-anchor="middle">load phone1_state → errorInfo included</text>
+
+  <line x1="760" y1="762" x2="1178" y2="762" stroke="#1a6db5" stroke-width="1.8" marker-end="url(#arr-b)"/>
+  <text class="lbl" x="970" y="756" text-anchor="middle">POST createCallEnd  callId:193421 (Number)  errorInfo:{code:PROVIDER_TEMP_FAILURE}</text>
+
+
+  <!-- ══════════════════════════════════════════════════════
+       SECTION 5 — Not Answer: single phone  y: 800–940
+  ══════════════════════════════════════════════════════ -->
+  <rect class="sec" x="0" y="798" width="1400" height="150" fill="#fdebd0" opacity="0.4"/>
+  <text class="sT" fill="#c0640a" x="14" y="818">⑤ Not Answer — Single Phone (no phone2)</text>
+  <line x1="0" y1="822" x2="1400" y2="822" stroke="#c0640a" stroke-width="0.6" stroke-dasharray="5 4"/>
+
+  <line x1="558" y1="848" x2="762" y2="848" stroke="#c0640a" stroke-width="1.5" marker-end="url(#arr-o)"/>
+  <text class="lbl" fill="#c0640a" x="660" y="842" text-anchor="middle">GET /index.php?callResult=FAILURE&amp;callId=193421&amp;displayPhone=0312345678&amp;…  (no phone2Num)</text>
+
+  <line x1="760" y1="872" x2="562" y2="872" stroke="#888" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#arr)"/>
+  <text class="ack" x="660" y="866" text-anchor="middle">JSON ack  (fastcgi_finish_request)</text>
+
+  <rect x="678" y="880" width="166" height="20" rx="3" fill="#fffde7" stroke="#f0c040" stroke-width="1"/>
+  <text class="note-txt" x="761" y="894" text-anchor="middle">no phone2 → route directly to NotAnswer</text>
+
+  <line x1="760" y1="910" x2="1178" y2="910" stroke="#1a6db5" stroke-width="1.8" marker-end="url(#arr-b)"/>
+  <text class="lbl" x="970" y="904" text-anchor="middle">POST createNotAnswer  callId:193421 (Number)  [no errorInfo]</text>
+
+  <line x1="1178" y1="934" x2="762" y2="934" stroke="#888" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#arr)"/>
+  <text class="ack" x="970" y="928" text-anchor="middle">{result:"success"}</text>
+
+
+  <!-- ══════════════════════════════════════════════════════
+       SECTION 6 — Not Answer: both phones fail  y: 958–1160
+  ══════════════════════════════════════════════════════ -->
+  <rect class="sec" x="0" y="956" width="1400" height="218" fill="#fdedec" opacity="0.4"/>
+  <text class="sT" fill="#922b21" x="14" y="976">⑥ Not Answer — Both Phones Fail (two-step via State)</text>
+  <line x1="0" y1="980" x2="1400" y2="980" stroke="#922b21" stroke-width="0.6" stroke-dasharray="5 4"/>
+
+  <!-- phone1 FAILURE callback -->
+  <line x1="558" y1="1006" x2="762" y2="1006" stroke="#c0640a" stroke-width="1.5" marker-end="url(#arr-o)"/>
+  <text class="lbl" fill="#c0640a" x="660" y="1000" text-anchor="middle">GET /index.php?callResult=FAILURE&amp;callId=193421&amp;displayPhone=0311111111&amp;phone2Num=0322222222</text>
+
+  <line x1="760" y1="1030" x2="562" y2="1030" stroke="#888" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#arr)"/>
+  <text class="ack" x="660" y="1024" text-anchor="middle">JSON ack</text>
+
+  <line x1="760" y1="1050" x2="958" y2="1050" stroke="#7d3c98" stroke-width="1.5" marker-end="url(#arr)"/>
+  <text class="lbl" fill="#7d3c98" x="860" y="1044" text-anchor="middle">save phone1_state  (waiting_phone2)</text>
+
+  <!-- phone2 FAILURE callback -->
+  <line x1="558" y1="1080" x2="762" y2="1080" stroke="#c0640a" stroke-width="1.5" marker-end="url(#arr-o)"/>
+  <text class="lbl" fill="#c0640a" x="660" y="1074" text-anchor="middle">GET /index.php?callResult=FAILURE&amp;callId=193421&amp;displayPhone=0322222222&amp;…</text>
+
+  <line x1="760" y1="1104" x2="562" y2="1104" stroke="#888" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#arr)"/>
+  <text class="ack" x="660" y="1098" text-anchor="middle">JSON ack</text>
+
+  <line x1="958" y1="1116" x2="762" y2="1116" stroke="#7d3c98" stroke-width="1.5" marker-end="url(#arr)"/>
+  <text class="lbl" fill="#7d3c98" x="860" y="1110" text-anchor="middle">load phone1_state → errorInfo for both phones</text>
+
+  <line x1="760" y1="1140" x2="1178" y2="1140" stroke="#1a6db5" stroke-width="1.8" marker-end="url(#arr-b)"/>
+  <text class="lbl" x="970" y="1134" text-anchor="middle">POST createNotAnswer  callId:193421 (Number)  errorInfo:{both failures}</text>
+
+  <line x1="1178" y1="1164" x2="762" y2="1164" stroke="#888" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#arr)"/>
+  <text class="ack" x="970" y="1158" text-anchor="middle">{result:"success"}</text>
+
+
+  <!-- ══════════════════════════════════════════════════════
+       LEGEND   y: 1188–1350
+  ══════════════════════════════════════════════════════ -->
+  <rect x="20" y="1195" width="760" height="160" rx="6" fill="#fff" stroke="#ccc" stroke-width="1"/>
+  <text style="font-size:13px; font-weight:bold; fill:#333;" x="36" y="1218">Legend</text>
+
+  <line x1="40" y1="1240" x2="120" y2="1240" stroke="#1e8449" stroke-width="1.8" marker-end="url(#arr-g)"/>
+  <text class="lbl" x="132" y="1244">Standard Ameyo callback (CONNECTED / FAILURE)</text>
+
+  <line x1="40" y1="1265" x2="120" y2="1265" stroke="#c0640a" stroke-width="1.5" stroke-dasharray="6 3" marker-end="url(#arr-o)"/>
+  <text class="lbl" x="132" y="1269">hangupCauseCode callback (SIP pre-dial failure)</text>
+
+  <line x1="40" y1="1290" x2="120" y2="1290" stroke="#1a6db5" stroke-width="1.8" marker-end="url(#arr-b)"/>
+  <text class="lbl" x="132" y="1294">POST to TopS.II / FastHelp Web API</text>
+
+  <line x1="400" y1="1240" x2="480" y2="1240" stroke="#7d3c98" stroke-width="1.5" marker-end="url(#arr)"/>
+  <text class="lbl" x="492" y="1244">State store read/write</text>
+
+  <line x1="400" y1="1265" x2="480" y2="1265" stroke="#888" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#arr)"/>
+  <text class="lbl" x="492" y="1269">Response / ack (dashed = async after fastcgi_finish_request)</text>
+
+  <rect x="40" y="1305" width="14" height="14" rx="2" fill="#fffde7" stroke="#f0c040" stroke-width="1"/>
+  <text class="lbl" x="60" y="1317">Yellow band = inline note (dedupe gate, routing decision)</text>
+
+  <text style="font-size:10px; fill:#888;" x="36" y="1345">callId is always sent as a Number (integer) per APISpecs — never a quoted string.</text>
+
 </svg>
