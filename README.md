@@ -32,9 +32,10 @@ A PHP relay that receives GET callbacks from the Ameyo dialer and forwards them 
 | `systemDisposition=CONNECTED` and `shareablePhonesDialIndex=0` | → `createCallEnd` (phone1 connected, no errorInfo) |
 | `systemDisposition=CONNECTED` and `shareablePhonesDialIndex>=1` | → `createCallEnd` (phone2 connected, phone1 errorInfo included) |
 | Not connected, single phone | → `createNotAnswer` with `errorInfo1` |
-| Not connected, two phones, phone1 callback | → Store phone1 status in state; wait for phone2 callback |
+| Not connected, two phones, phone1 callback with `systemDisposition` | → `createNotAnswer` with `errorInfo1` |
+| Not connected, two phones, phone1 callback with `hangupCauseCode` and no `systemDisposition` | → Store phone1 status in state; wait for phone2 callback |
 | Not connected, two phones, phone2 callback | → `createNotAnswer` with `errorInfo1` + `errorInfo2` |
-| `hangupCauseCode` present (pre-dial failure signal) | → Store phone1 status in state; wait for phone2 callback |
+| `hangupCauseCode` present and `systemDisposition` missing (pre-dial failure signal) | → Store phone1 status in state; wait for phone2 callback |
 
 ---
 

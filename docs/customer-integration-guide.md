@@ -84,9 +84,10 @@ This is an acknowledgment only. Processing continues after this response is sent
 | `systemDisposition=CONNECTED`, `shareablePhonesDialIndex=0` | → **Call End** (phone1 connected, no errorInfo) |
 | `systemDisposition=CONNECTED`, `shareablePhonesDialIndex≥1` | → **Call End** with phone1 errorInfo (from stored state) |
 | Not connected, 1 phone | → **Not Answer** with `errorInfo1` |
-| Not connected, 2 phones, phone1 callback (`dialIndex=0`) | → Store phone1 status; wait for phone2 callback |
+| Not connected, 2 phones, phone1 callback (`dialIndex=0`) with `systemDisposition` | → **Not Answer** with `errorInfo1` |
+| Not connected, 2 phones, phone1 callback (`dialIndex=0`) with `hangupCauseCode` and no `systemDisposition` | → Store phone1 status; wait for phone2 callback |
 | Not connected, 2 phones, phone2 callback (`dialIndex≥1`) | → **Not Answer** with `errorInfo1` + `errorInfo2` |
-| `hangupCauseCode` present (any phone count ≥ 2) | → Store phone1 status; wait for phone2 callback |
+| `hangupCauseCode` present and `systemDisposition` missing (any phone count ≥ 2) | → Store phone1 status; wait for phone2 callback |
 
 ---
 

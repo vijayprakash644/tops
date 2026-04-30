@@ -110,9 +110,9 @@ Triggered when Ameyo connects to a customer and pops the screen on the operator'
 | `CONNECTED` | 0 | — | Any | `createCallEnd` (no errorInfo) |
 | `CONNECTED` | ≥ 1 | — | ≥ 2 | `createCallEnd` + phone1 errorInfo from state |
 | Not connected | 0 | — | 1 | `createNotAnswer` with `errorInfo1` |
-| Not connected | 0 | — | 2 | Store phone1 status → wait for phone2 |
+| Not connected | 0 | — | 2 | `createNotAnswer` with `errorInfo1` |
 | Not connected | ≥ 1 | — | 2 | `createNotAnswer` with `errorInfo1` + `errorInfo2` |
-| Any | 0 | Present | 2 | Treat as phone1 failure → store status → wait for phone2 |
+| Empty/missing | 0 | Present | 2 | Treat as phone1 pre-dial failure → store status → wait for phone2 |
 
 **hangupCauseCode mapping (examples):**
 

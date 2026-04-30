@@ -103,6 +103,12 @@ function handle_index_request(): void
     $shouldCallEndPhone1 = $phone1Connected;
     $shouldCallEndPhone2 = $phone2Connected;
     $shouldNotAnswer     = (!$isConnected);
+    $shouldWaitForPhone2 = (
+        $hasPhone2
+        && $dialIndex === 0
+        && $systemDisposition === ''
+        && $hangupCauseCode !== ''
+    );
 
     // Choose log channel
     if ($shouldCallEndPhone1 || $shouldCallEndPhone2) {
@@ -233,7 +239,7 @@ function handle_index_request(): void
         // Neither phone connected -> NotAnswer
         $callTime = get_param($_GET, 'callTime', $now);
 
-        if ($hasPhone2 && $dialIndex === 0) {
+        if ($shouldWaitForPhone2) {
             $phone1Status = $phone1StatusFromHangup !== '' ? $phone1StatusFromHangup : $statusNow;
             $stateKey = phone1_state_key($customerId, $callId);
             save_phone1_state($stateKey, [
@@ -255,12 +261,13 @@ function handle_index_request(): void
 
         $phone1StateKey = '';
         $phone1State = [];
-        if ($hasPhone2 && $dialIndex >= 1) {
+        $isPhone2Attempt = $hasPhone2 && $dialIndex >= 1;
+        if ($isPhone2Attempt) {
             $phone1StateKey = phone1_state_key($customerId, $callId);
             $phone1State = load_phone1_state($phone1StateKey);
         }
 
-        if (!$hasPhone2) {
+        if (!$hasPhone2 || ($hasPhone2 && $dialIndex === 0)) {
             $errorInfo1 = $statusNow;
         } elseif (isset($phone1State['phone1Status']) && $phone1State['phone1Status'] !== '') {
             $errorInfo1 = (string) $phone1State['phone1Status'];
@@ -270,16 +277,16 @@ function handle_index_request(): void
 
         // Phone2 errorInfo only when there really is a second phone
         $errorInfo2 = '';
-        if ($hasPhone2) {
+        if ($isPhone2Attempt) {
             // for phone2, we just use current statusNow when dialIndex>=1
-            $errorInfo2 = ($dialIndex >= 1) ? $statusNow : '';
+            $errorInfo2 = $statusNow;
         }
 
         $payload = build_not_answer_payload(
             $callId,
             $callTime,
             $errorInfo1,
-            $hasPhone2 ? $errorInfo2 : ''
+            $isPhone2Attempt ? $errorInfo2 : ''
         );
 
         $validation = validate_not_answer($payload);
@@ -292,16 +299,18 @@ function handle_index_request(): void
 
         log_event(
             'decision',
-            $hasPhone2 ? 'Not connected -> createNotAnswer (errorInfo1+2)' : 'Not connected -> createNotAnswer (errorInfo1 only)',
+            $isPhone2Attempt ? 'Not connected -> createNotAnswer (errorInfo1+2)' : 'Not connected -> createNotAnswer (errorInfo1 only)',
             [
                 'callId' => $callId,
                 'dialIndex' => $dialIndex,
                 'numAttempts' => $numAttempts,
                 'hasPhone2' => $hasPhone2,
                 'errorInfo1' => $errorInfo1,
-                'errorInfo2' => $hasPhone2 ? $errorInfo2 : '',
+                'errorInfo2' => $isPhone2Attempt ? $errorInfo2 : '',
                 'phones' => $phones,
                 'phone1_state_used' => isset($phone1State['phone1Status']) && $phone1State['phone1Status'] !== '',
+                'systemDisposition' => $systemDisposition,
+                'hangupCauseCode' => $hangupCauseCode,
             ]
         );
 
