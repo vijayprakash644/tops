@@ -49,28 +49,28 @@ function handle_index_request(): void
     
     $systemDisposition = get_param($_GET, 'systemDisposition');
     $hangupCauseCode = get_param($_GET, 'hangupCauseCode');
-    $hangupMap = $hangupCauseCode !== '' ? load_hangup_cause_map() : [];
+    $hangupMap = ($systemDisposition === '' && $hangupCauseCode !== '') ? load_hangup_cause_map() : [];
 
     // Dialing meta
     $phones = parse_phone_list($_GET); // from phoneList JSON if present
     $dialIndex = to_int(get_param($_GET, 'shareablePhonesDialIndex', '0'), 0);
     $numAttempts = to_int(get_param($_GET, 'numAttempts', '1'), 1);
-    if ($cstmPhone !== '' && ($dialIndex >= 1 || $targetTel === '')) {
-        $targetTel = $cstmPhone;
+
+    if ($systemDisposition !== '') {
+        // systemDisposition already in final format from Ameyo — use directly
+        $statusNow = apply_hangup_status_overrides($systemDisposition, $hangupCauseCode);
+        $phone1StatusFromHangup = '';
+    } else {
+        // No systemDisposition — derive from hangupCauseCode via hangup map (Scenario 1: phone1 intermediate)
+        $rawFromHangup = $hangupCauseCode !== ''
+            ? resolve_system_disposition_from_hangup_code($hangupCauseCode, $hangupMap)
+            : '';
+        $phone1StatusFromHangup = apply_hangup_status_overrides($rawFromHangup, $hangupCauseCode);
+        $statusNow = $phone1StatusFromHangup;
     }
 
     // Connection detection
-    $isConnected = is_connected_from_get($_GET, $systemDisposition);
-    if ($hangupCauseCode !== '') {
-        $isConnected = false;
-        $dialIndex = 0; // treat as phone1 failure for simplicity; we mainly want to capture the failure cause
-    }
-
-    // Determine status for this attempt
-    $statusNow = $systemDisposition;
-    $phone1StatusFromHangup = $hangupCauseCode !== ''
-        ? resolve_system_disposition_from_hangup_code($hangupCauseCode, $hangupMap)
-        : '';
+    $isConnected = is_connected_from_get($_GET, $statusNow);
     $now = date('Y-m-d H:i:s');
 
     // Very simple phone count from current request only
@@ -108,6 +108,7 @@ function handle_index_request(): void
         && $dialIndex === 0
         && $systemDisposition === ''
         && $hangupCauseCode !== ''
+        && !$isConnected
     );
 
     // Choose log channel
@@ -448,6 +449,18 @@ function resolve_system_disposition_from_hangup_code(string $code, array $map): 
     return '';
 }
 
+function apply_hangup_status_overrides(string $status, string $hangupCauseCode): string
+{
+    $status = trim($status);
+    $hangupCauseCode = trim($hangupCauseCode);
+
+    if ($status === 'PROVIDER_FAILURE' && $hangupCauseCode === '403') {
+        return 'PROVIDER_FAILURE_403';
+    }
+
+    return $status;
+}
+
 
 function parse_ameyo_time(string $raw): string
 {
@@ -598,12 +611,6 @@ function load_phone1_state(string $key): array
     $raw = file_get_contents($p);
     $j = json_decode((string)$raw, true);
     if (!is_array($j)) {
-        return [];
-    }
-    $ttl = (int) env('PHONE1_STATE_TTL_SECONDS', '600');
-    $updatedAt = isset($j['updatedAt']) ? strtotime((string) $j['updatedAt']) : 0;
-    if ($updatedAt > 0 && (time() - $updatedAt) > $ttl) {
-        @unlink($p);
         return [];
     }
     return $j;

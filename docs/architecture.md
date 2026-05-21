@@ -39,7 +39,7 @@ Key systems:
 - Provides key parameters: `unique_id`, `customerCRTId`, `shareablePhonesDialIndex`, `phoneList`, `systemDisposition`, `hangupCauseCode`
 - Two distinct callback types:
   - **Standard callback** — full params including `systemDisposition`, `callResult`, `callConnectedTime`
-  - **hangupCause callback** — abbreviated; includes only `hangupCauseCode`, `dialedPhone`, `customerCRTId` (signals a pre-dial phone1 SIP failure)
+- **hangupCause callback** — includes `hangupCauseCode`; used as a fallback source when `systemDisposition` is blank
 
 ### PHP Relay
 - `index.php` → `handle_index_request()` — routes to Call End or Not Answer
@@ -100,7 +100,10 @@ Triggered when Ameyo connects to a customer and pops the screen on the operator'
 | `systemDisposition` | Whether the call connected (`CONNECTED`) or failed |
 | `shareablePhonesDialIndex` | 0 = phone1 attempt, 1+ = phone2 attempt |
 | `phoneList` | JSON array of phone numbers for this customer |
-| `hangupCauseCode` | Numeric SIP cause code — signals a pre-dial phone1 failure |
+| `hangupCauseCode` | Numeric SIP cause code — fallback source when `systemDisposition` is blank |
+
+Special status override:
+- Resolved `PROVIDER_FAILURE` + `hangupCauseCode=403` → `PROVIDER_FAILURE_403`
 | `customerCRTId` | Required for Call End — becomes `subCtiHistoryId` |
 
 **Routing decision table:**
@@ -112,7 +115,7 @@ Triggered when Ameyo connects to a customer and pops the screen on the operator'
 | Not connected | 0 | — | 1 | `createNotAnswer` with `errorInfo1` |
 | Not connected | 0 | — | 2 | `createNotAnswer` with `errorInfo1` |
 | Not connected | ≥ 1 | — | 2 | `createNotAnswer` with `errorInfo1` + `errorInfo2` |
-| Empty/missing | 0 | Present | 2 | Treat as phone1 pre-dial failure → store status → wait for phone2 |
+| Empty/missing | 0 | Present | 2 | Map `hangupCauseCode` to status → store status → wait for phone2 |
 
 **hangupCauseCode mapping (examples):**
 
@@ -181,8 +184,8 @@ Sent when all phone attempts fail. `callId` is always a Number.
 |---------------|--------|
 | `callId` | `unique_id` (cast to int) |
 | `callTime` | Processing timestamp at time of callback |
-| `errorInfo1` | Phone1 `systemDisposition` or hangupCauseCode-mapped value |
-| `errorInfo2` | Phone2 `systemDisposition` (only when dialIndex ≥ 1) |
+| `errorInfo1` | Phone1 `systemDisposition` or hangupCauseCode-mapped fallback value |
+| `errorInfo2` | Phone2 `systemDisposition` or hangupCauseCode-mapped fallback value (only when dialIndex ≥ 1) |
 
 ---
 

@@ -75,7 +75,10 @@ This is an acknowledgment only. Processing continues after this response is sent
 | `phoneList` | JSON-encoded array of phone numbers for this customer |
 | `callConnectedTime` | Connection timestamp (format: `YYYY/MM/DD HH:mm:ss +0900`) — required for Call End |
 | `userId` | Staff identifier — required for Call End |
-| `hangupCauseCode` | *(Optional)* Numeric SIP code; signals phone1 pre-dial failure |
+| `hangupCauseCode` | *(Optional)* Numeric SIP code; used as fallback when `systemDisposition` is blank |
+
+Special override:
+- If the resolved status is `PROVIDER_FAILURE` and `hangupCauseCode=403`, the relay sends `PROVIDER_FAILURE_403`.
 
 ### Routing rules
 
@@ -85,9 +88,9 @@ This is an acknowledgment only. Processing continues after this response is sent
 | `systemDisposition=CONNECTED`, `shareablePhonesDialIndex≥1` | → **Call End** with phone1 errorInfo (from stored state) |
 | Not connected, 1 phone | → **Not Answer** with `errorInfo1` |
 | Not connected, 2 phones, phone1 callback (`dialIndex=0`) with `systemDisposition` | → **Not Answer** with `errorInfo1` |
-| Not connected, 2 phones, phone1 callback (`dialIndex=0`) with `hangupCauseCode` and no `systemDisposition` | → Store phone1 status; wait for phone2 callback |
+| Not connected, 2 phones, phone1 callback (`dialIndex=0`) with blank `systemDisposition` | → Map `hangupCauseCode`, store phone1 status, wait for phone2 callback |
 | Not connected, 2 phones, phone2 callback (`dialIndex≥1`) | → **Not Answer** with `errorInfo1` + `errorInfo2` |
-| `hangupCauseCode` present and `systemDisposition` missing (any phone count ≥ 2) | → Store phone1 status; wait for phone2 callback |
+| `hangupCauseCode` present and `systemDisposition` blank | → Use hangup cause mapping as fallback status |
 
 ---
 

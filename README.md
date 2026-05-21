@@ -33,9 +33,9 @@ A PHP relay that receives GET callbacks from the Ameyo dialer and forwards them 
 | `systemDisposition=CONNECTED` and `shareablePhonesDialIndex>=1` | → `createCallEnd` (phone2 connected, phone1 errorInfo included) |
 | Not connected, single phone | → `createNotAnswer` with `errorInfo1` |
 | Not connected, two phones, phone1 callback with `systemDisposition` | → `createNotAnswer` with `errorInfo1` |
-| Not connected, two phones, phone1 callback with `hangupCauseCode` and no `systemDisposition` | → Store phone1 status in state; wait for phone2 callback |
+| Not connected, two phones, phone1 callback with blank `systemDisposition` | → Map `hangupCauseCode` to status, store phone1 status in state, wait for phone2 callback |
 | Not connected, two phones, phone2 callback | → `createNotAnswer` with `errorInfo1` + `errorInfo2` |
-| `hangupCauseCode` present and `systemDisposition` missing (pre-dial failure signal) | → Store phone1 status in state; wait for phone2 callback |
+| `hangupCauseCode` present and `systemDisposition` blank | → Use hangup cause mapping as fallback status |
 
 ---
 
@@ -50,8 +50,11 @@ A PHP relay that receives GET callbacks from the Ameyo dialer and forwards them 
 | `customerCRTId` | `subCtiHistoryId` | Required for Call End |
 | `dialledPhone` → fallback `dialedPhone` | `targetTel` | For phone1 callbacks |
 | `cstmPhone` | `targetTel` | Used when `dialIndex >= 1` |
-| `systemDisposition` | Connection status / errorInfo value | e.g. `CONNECTED`, `PROVIDER_TEMP_FAILURE` |
-| `hangupCauseCode` | Maps to errorInfo via hangup cause table | Numeric SIP code; signals phone1 failure |
+| `systemDisposition` | Primary connection status / errorInfo value | e.g. `CONNECTED`, `PROVIDER_TEMP_FAILURE` |
+| `hangupCauseCode` | Fallback source when `systemDisposition` is blank; also used for status overrides | Numeric SIP code |
+
+Special override:
+- If resolved status is `PROVIDER_FAILURE` and `hangupCauseCode=403`, the relay sends `PROVIDER_FAILURE_403`.
 | `shareablePhonesDialIndex` | Dial attempt index (0 = phone1, 1+ = phone2) | |
 | `phoneList` | Array of phone numbers | JSON-encoded string |
 | `callConnectedTime` | `callStartTime` | Ameyo format: `YYYY/MM/DD HH:mm:ss +0900` |
